@@ -1,6 +1,10 @@
 import java.awt.Color;
+import java.awt.Point;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
@@ -36,7 +40,7 @@ public class FractalLabel extends JLabel {
 		centerX = -0.55;
 		centerY = 0;
 		width = 5;
-		rotation = 0.15;
+		rotation = Math.PI/4;
 
 		addComponentListener(new ComponentAdapter() {
 			public void componentResized(ComponentEvent e) {
@@ -44,35 +48,40 @@ public class FractalLabel extends JLabel {
 				updateImage();
 			}
 		});
+		
+		addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent e) {
+				Point mousePoint = e.getPoint();
+				Point2D.Double mousePoint2 = getFractalXY(mousePoint);
+				Point mousePoint3 = getImageXY(mousePoint2);
+				System.out.println(mousePoint + "\n" + mousePoint2 + "\n" + mousePoint3 + "\n");
+			}
+		});
 	}
 	
 	void updateFractal() {
 		fractal = new double[getWidth()][getHeight()];
-		for(int i = 0; i < fractal.length; i++) {
-			for(int j = 0; j < fractal[0].length; j++) {
-				double r0 = (((double)i)/fractal.length - 0.5)*width + centerX;
-				double i0 = -(((double)j) - 0.5*fractal[0].length)*width/fractal.length + centerY;
+		for(int imageX = 0; imageX < fractal.length; imageX++) {
+			for(int imageY = 0; imageY < fractal[0].length; imageY++) {
+				Point2D.Double z = getFractalXY(new Point(imageX, imageY));
+				double r0 = z.getX();
+				double i0 = z.getY();
+				
 				int n = 0;
-				double real = 0;
-				double imag = 0;
-				while(n < maxIter && real*real + imag*imag < escapeRad){
-					double rt = real, it = imag;
-					real = rt*rt - it*it + r0;
-					imag = 2*rt*it + i0;
+				double r = 0;
+				double i = 0;
+				while(n < maxIter && r*r + i*i < escapeRad){
+					double rt = r;
+					r = rt*rt - i*i + r0;
+					i = 2*rt*i + i0;
 					n++;
 				}
-				fractal[i][j] = n;
+				fractal[imageX][imageY] = n;
 			}
 		}
 	}
 
-	void updateImage() {
-		double test = rotation;
-		for(int i = 0; i <= test*5; i++)
-			rotation++;
-		while(rotation >= 2*Math.PI)
-			rotation -= 2*Math.PI;
-		
+	void updateImage() {		
 		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);
 		for(int i = 0; i < fractal.length; i++) {
 			for(int j = 0; j < fractal[0].length; j++) {
@@ -88,6 +97,26 @@ public class FractalLabel extends JLabel {
 		
 		icon.setImage(image);
 		updateUI();
+	}
+	
+	Point2D.Double getFractalXY(Point imageXY){
+		double dx = (((double)imageXY.getX())/fractal.length - 0.5)*width;
+		double dy = -(((double)imageXY.getY()) - 0.5*fractal[0].length)*width/fractal.length;
+		return new Point2D.Double(
+				centerX + dx*Math.cos(rotation) - dy*Math.sin(rotation),
+				centerY + dx*Math.sin(rotation) + dy*Math.cos(rotation)
+		);
+	}
+	
+	Point getImageXY(Point2D.Double fractalXY){
+		double dxt = fractalXY.getX() - centerX;
+		double dy = fractalXY.getY() - centerY;
+		double dx = dxt*Math.cos(rotation) + dy*Math.sin(rotation);
+		dy = -dxt*Math.sin(rotation) + dy*Math.cos(rotation);
+		return new Point(
+				(int)(fractal.length*(0.5 + dx/width) + 0.5),
+				(int)(0.5*fractal[0].length - dy*fractal.length/width + 0.5)
+		);
 	}
 }
 
