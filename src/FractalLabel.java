@@ -7,7 +7,13 @@ import javax.swing.JLabel;
 
 public class FractalLabel extends JLabel {
 	private static final long serialVersionUID = 6834230068761778027L;
+
+	double maxIter;
+	double escapeRad;
 	
+	double centerX;
+	double centerY;
+	double width;
 	double rotation;
 
 	double[][] fractal;
@@ -24,7 +30,13 @@ public class FractalLabel extends JLabel {
 		icon = new ImageIcon();
 		setIcon(icon);
 		
-		rotation = 0.1;
+		maxIter = 100;
+		escapeRad = 420.69;
+		
+		centerX = -0.55;
+		centerY = 0;
+		width = 5;
+		rotation = 0.15;
 
 		addComponentListener(new ComponentAdapter() {
 			public void componentResized(ComponentEvent e) {
@@ -35,7 +47,23 @@ public class FractalLabel extends JLabel {
 	}
 	
 	void updateFractal() {
-		fractal = new double[getWidth()][getHeight()];	
+		fractal = new double[getWidth()][getHeight()];
+		for(int i = 0; i < fractal.length; i++) {
+			for(int j = 0; j < fractal[0].length; j++) {
+				double r0 = (((double)i)/fractal.length - 0.5)*width + centerX;
+				double i0 = -(((double)j) - 0.5*fractal[0].length)*width/fractal.length + centerY;
+				int n = 0;
+				double real = 0;
+				double imag = 0;
+				while(n < maxIter && real*real + imag*imag < escapeRad){
+					double rt = real, it = imag;
+					real = rt*rt - it*it + r0;
+					imag = 2*rt*it + i0;
+					n++;
+				}
+				fractal[i][j] = n;
+			}
+		}
 	}
 
 	void updateImage() {
@@ -48,10 +76,13 @@ public class FractalLabel extends JLabel {
 		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);
 		for(int i = 0; i < fractal.length; i++) {
 			for(int j = 0; j < fractal[0].length; j++) {
-				if((int)(i*Math.cos(rotation) + j*Math.sin(rotation))/10 % 2 == 0)
-					image.setRGB(i, j, Color.RED.getRGB());
-				else
+				if(fractal[i][j] == maxIter) {
 					image.setRGB(i, j, Color.BLACK.getRGB());
+				}
+				else {
+					int white = (int)(255*0.5*(1 - 0.5*Math.cos(2*Math.PI*fractal[i][j]/10 + 1.2)));
+					image.setRGB(i, j, new Color(white, white, white).getRGB());
+				}
 			}
 		}
 		
