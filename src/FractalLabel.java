@@ -37,10 +37,10 @@ public class FractalLabel extends JLabel {
 		maxIter = 100;
 		escapeRad = 420.69;
 		
-		centerX = -0.55;
+		centerX = -0.69;
 		centerY = 0;
 		width = 5;
-		rotation = Math.PI/4;
+		rotation = 0;
 
 		addComponentListener(new ComponentAdapter() {
 			public void componentResized(ComponentEvent e) {
@@ -51,10 +51,12 @@ public class FractalLabel extends JLabel {
 		
 		addMouseListener(new MouseAdapter() {
 			public void mouseClicked(MouseEvent e) {
-				Point mousePoint = e.getPoint();
-				Point2D.Double mousePoint2 = getFractalXY(mousePoint);
-				Point mousePoint3 = getImageXY(mousePoint2);
-				System.out.println(mousePoint + "\n" + mousePoint2 + "\n" + mousePoint3 + "\n");
+				Point2D.Double newCenter = getFractalXY(e.getPoint());
+				centerX = newCenter.getX();
+				centerY = newCenter.getY();
+				System.out.println(centerX + " " + centerY);
+				updateFractal();
+				updateImage();
 			}
 		});
 	}
