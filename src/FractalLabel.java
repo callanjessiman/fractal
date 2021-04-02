@@ -4,6 +4,8 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import javax.swing.ImageIcon;
@@ -55,6 +57,14 @@ public class FractalLabel extends JLabel {
 				centerX = newCenter.getX();
 				centerY = newCenter.getY();
 				System.out.println(centerX + " " + centerY);
+				updateFractal();
+				updateImage();
+			}
+		});
+		
+		addMouseWheelListener(new MouseWheelListener() {
+			public void mouseWheelMoved(MouseWheelEvent e) {
+				width *= Math.pow(2, e.getWheelRotation());
 				updateFractal();
 				updateImage();
 			}
