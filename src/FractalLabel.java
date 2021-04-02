@@ -1,8 +1,63 @@
+import java.awt.Color;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.image.BufferedImage;
+import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 
 public class FractalLabel extends JLabel {
 	private static final long serialVersionUID = 6834230068761778027L;
+	
+	double rotation;
 
+	double[][] fractal;
+	BufferedImage image;
+
+	ImageIcon icon;
+	
+	FractalLabel(){
+		setHorizontalAlignment(CENTER);
+		setVerticalAlignment(CENTER);
+		setBackground(Color.BLACK);
+		setOpaque(true);
+		
+		icon = new ImageIcon();
+		setIcon(icon);
+		
+		rotation = 0.1;
+
+		addComponentListener(new ComponentAdapter() {
+			public void componentResized(ComponentEvent e) {
+				updateFractal();
+				updateImage();
+			}
+		});
+	}
+	
+	void updateFractal() {
+		fractal = new double[getWidth()][getHeight()];	
+	}
+
+	void updateImage() {
+		double test = rotation;
+		for(int i = 0; i <= test*5; i++)
+			rotation++;
+		while(rotation >= 2*Math.PI)
+			rotation -= 2*Math.PI;
+		
+		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);
+		for(int i = 0; i < fractal.length; i++) {
+			for(int j = 0; j < fractal[0].length; j++) {
+				if((int)(i*Math.cos(rotation) + j*Math.sin(rotation))/10 % 2 == 0)
+					image.setRGB(i, j, Color.RED.getRGB());
+				else
+					image.setRGB(i, j, Color.BLACK.getRGB());
+			}
+		}
+		
+		icon.setImage(image);
+		updateUI();
+	}
 }
 
 /*Old version:

@@ -1,20 +1,41 @@
+import java.awt.BorderLayout;
+
 import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
 
 public class FractalGUI extends JFrame {
 	private static final long serialVersionUID = -7891287854194431851L;
+	
+	FractalLabel label;
+	JPanel controlPanel;
 
 	FractalGUI(){
 		// initialize JFrame
 		super("fractal");
 		setSize(400, 400);
 		setLocation(80, 60);
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		// add components
+		setLayout(new BorderLayout());
+		
+		label = new FractalLabel();
+		add(label, BorderLayout.CENTER);
+		
+		controlPanel = new JPanel();
+		controlPanel.setLayout(new BorderLayout());
+		JTextField placeholderText = new JTextField("Placeholder");
+		placeholderText.setEditable(false);
+		controlPanel.add(placeholderText, BorderLayout.CENTER);
+		add(controlPanel, BorderLayout.EAST);
 		
 		// set frame visible
 		setVisible(true);
 		
 		// apply initial update of components
+		label.updateFractal();
+		label.updateImage();
 	}
 
 	public static void main(String[] args) {
