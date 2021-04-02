@@ -36,7 +36,7 @@ public class FractalLabel extends JLabel {
 		icon = new ImageIcon();
 		setIcon(icon);
 		
-		maxIter = 100;
+		maxIter = 1000;
 		escapeRad = 420.69;
 		
 		centerX = -0.69;
@@ -131,6 +131,14 @@ public class FractalLabel extends JLabel {
 		);
 	}
 }
+
+/*todos:
+ * - add a Timer to control updates of the image
+ * - encapsulate the calculation of pixel values
+ * - multithread the calculation of pixel values
+ * - add antialiasing
+ * - add abort capability (on button-press or on close)
+ */
 
 /*Old version:
 

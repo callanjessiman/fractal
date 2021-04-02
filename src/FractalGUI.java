@@ -42,6 +42,15 @@ public class FractalGUI extends JFrame {
 		new FractalGUI();
 	}
 }
+
+/*todos:
+ * - add a better control panel for pan/zoom/rotate
+ * 		- especially a progress bar
+ * - add image saving
+ * - add precise framing (place a frame in view, then use it to set view params)
+ * - add an icon
+ */
+
 /* Old version:
 
 import java.awt.BorderLayout;
