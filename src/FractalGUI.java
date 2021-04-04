@@ -4,6 +4,16 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
+// simple class to act as the top-level Component in the GUI
+
+/*todos:
+ * - add a better control panel for pan/zoom/rotate
+ * 		- especially a progress bar
+ * - add image saving
+ * - add precise framing (place a frame in view, then use it to set view params)
+ * - add an icon
+ */
+
 public class FractalGUI extends JFrame {
 	private static final long serialVersionUID = -7891287854194431851L;
 	
@@ -30,10 +40,12 @@ public class FractalGUI extends JFrame {
 		controlPanel.add(placeholderText, BorderLayout.CENTER);
 		add(controlPanel, BorderLayout.EAST);
 		
-		// set frame visible
+		// initialize components (before showing frame)
+		
+		// show frame
 		setVisible(true);
 		
-		// apply initial update of components
+		// initialize components (after showing frame)
 		label.updateFractal();
 		label.updateImage();
 	}
@@ -42,14 +54,6 @@ public class FractalGUI extends JFrame {
 		new FractalGUI();
 	}
 }
-
-/*todos:
- * - add a better control panel for pan/zoom/rotate
- * 		- especially a progress bar
- * - add image saving
- * - add precise framing (place a frame in view, then use it to set view params)
- * - add an icon
- */
 
 /* Old version:
 

@@ -11,40 +11,60 @@ import java.awt.image.BufferedImage;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 
+// class which is Component showing the rendered image, and which also contains the view parameters and methods for interaction
+
+/*todos:
+ * - add keyboard control (requires learning the focus subsystem)
+ * - add a Timer to control updates of the image
+ * - encapsulate the calculation of pixel values
+ * - add a better color mapping (color/log scaling)
+ * - multithread the calculation of pixel values
+ * - add antialiasing
+ * - add abort capability (on button-press or on close)
+ * - add customizable color mapping
+ */
+
 public class FractalLabel extends JLabel {
 	private static final long serialVersionUID = 6834230068761778027L;
 
+	// fractal calculation parameters
 	double maxIter;
 	double escapeRad;
 	
+	// view parameters
 	double centerX;
 	double centerY;
 	double width;
 	double rotation;
 
-	double[][] fractal;
-	BufferedImage image;
-
-	ImageIcon icon;
+	double[][] fractal;// fractal data
+	BufferedImage image;// rendered image
+	ImageIcon icon;// Icon to show image
 	
 	FractalLabel(){
+		// set alignment and background (to achieve desired behaviour during resize)
 		setHorizontalAlignment(CENTER);
 		setVerticalAlignment(CENTER);
 		setBackground(Color.BLACK);
 		setOpaque(true);
 		
+		// add components
 		icon = new ImageIcon();
 		setIcon(icon);
 		
+		//initialize fractal parameters
 		maxIter = 1000;
 		escapeRad = 420.69;
 		
+		//initialize view parameters
 		centerX = -0.69;
 		centerY = 0;
 		width = 5;
 		rotation = 0;
 
+		//add listeners
 		addComponentListener(new ComponentAdapter() {
+			// on window resize, update fractal/image
 			public void componentResized(ComponentEvent e) {
 				updateFractal();
 				updateImage();
@@ -52,6 +72,7 @@ public class FractalLabel extends JLabel {
 		});
 		
 		addMouseListener(new MouseAdapter() {
+			// on click, center clicked point and update fractal/image
 			public void mouseClicked(MouseEvent e) {
 				Point2D.Double newCenter = getFractalXY(e.getPoint());
 				centerX = newCenter.getX();
@@ -63,6 +84,7 @@ public class FractalLabel extends JLabel {
 		});
 		
 		addMouseWheelListener(new MouseWheelListener() {
+			// on mouse scroll, zoom accordingly and update fractal/image
 			public void mouseWheelMoved(MouseWheelEvent e) {
 				width *= Math.pow(2, e.getWheelRotation());
 				updateFractal();
@@ -71,6 +93,7 @@ public class FractalLabel extends JLabel {
 		});
 	}
 	
+	// recreate fractal array to match current window size and fractal and view parameters
 	void updateFractal() {
 		fractal = new double[getWidth()][getHeight()];
 		for(int imageX = 0; imageX < fractal.length; imageX++) {
@@ -93,6 +116,7 @@ public class FractalLabel extends JLabel {
 		}
 	}
 
+	// recreate fractal image to match fractal array
 	void updateImage() {		
 		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);
 		for(int i = 0; i < fractal.length; i++) {
@@ -111,6 +135,7 @@ public class FractalLabel extends JLabel {
 		updateUI();
 	}
 	
+	// convert a point in image space to fractal space
 	Point2D.Double getFractalXY(Point imageXY){
 		double dx = (((double)imageXY.getX())/fractal.length - 0.5)*width;
 		double dy = -(((double)imageXY.getY()) - 0.5*fractal[0].length)*width/fractal.length;
@@ -120,6 +145,7 @@ public class FractalLabel extends JLabel {
 		);
 	}
 	
+	// convert a point from fractal space to image space
 	Point getImageXY(Point2D.Double fractalXY){
 		double dxt = fractalXY.getX() - centerX;
 		double dy = fractalXY.getY() - centerY;
@@ -131,14 +157,6 @@ public class FractalLabel extends JLabel {
 		);
 	}
 }
-
-/*todos:
- * - add a Timer to control updates of the image
- * - encapsulate the calculation of pixel values
- * - multithread the calculation of pixel values
- * - add antialiasing
- * - add abort capability (on button-press or on close)
- */
 
 /*Old version:
 
