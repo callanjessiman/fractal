@@ -1,5 +1,7 @@
 import java.awt.Color;
 import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
@@ -10,6 +12,7 @@ import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
+import javax.swing.Timer;
 
 // class which is Component showing the rendered image, and which also contains the view parameters and methods for interaction
 
@@ -37,9 +40,13 @@ public class FractalLabel extends JLabel {
 	double width;
 	double rotation;
 
-	double[][] fractal;// fractal data
-	BufferedImage image;// rendered image
-	ImageIcon icon;// Icon to show image
+	// fractal data and objects to show image
+	double[][] fractal;
+	BufferedImage image;
+	ImageIcon icon;
+	
+	// timer to call fractal update at a delay after last action
+	Timer updateTimer;
 	
 	FractalLabel(){
 		// set alignment and background (to achieve desired behaviour during resize)
@@ -64,38 +71,51 @@ public class FractalLabel extends JLabel {
 
 		//add listeners
 		addComponentListener(new ComponentAdapter() {
-			// on window resize, update fractal/image
+			// on window resize, start update timer
 			public void componentResized(ComponentEvent e) {
-				updateFractal();
-				updateImage();
+				System.out.println(String.format("FractalLabel resized (%s, %s)", getWidth(), getHeight()));
+				updateTimer.restart();
 			}
 		});
 		
 		addMouseListener(new MouseAdapter() {
-			// on click, center clicked point and update fractal/image
+			// on click, center clicked point and start update timer
 			public void mouseClicked(MouseEvent e) {
 				Point2D.Double newCenter = getFractalXY(e.getPoint());
 				centerX = newCenter.getX();
 				centerY = newCenter.getY();
-				System.out.println(centerX + " " + centerY);
-				updateFractal();
-				updateImage();
+				System.out.println(String.format("FractalLabel center changed (%s, %s)", centerX, centerY));
+				updateTimer.restart();
 			}
 		});
 		
 		addMouseWheelListener(new MouseWheelListener() {
-			// on mouse scroll, zoom accordingly and update fractal/image
+			// on mouse scroll, zoom accordingly and start update timer
 			public void mouseWheelMoved(MouseWheelEvent e) {
 				width *= Math.pow(2, e.getWheelRotation());
-				updateFractal();
-				updateImage();
+				System.out.println(String.format("FractalLabel width changed (%s)", width));
+				updateTimer.restart();
 			}
 		});
+		
+		updateTimer = new Timer(100, new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				// at a delay after the last call to update timer, update fractal
+				System.out.print("Updating fractal... ");
+				updateFractal();
+				System.out.print("done\nUpdating image... ");
+				updateImage();
+				System.out.println("done");
+			}
+		});
+		updateTimer.setRepeats(false);
 	}
 	
 	// recreate fractal array to match current window size and fractal and view parameters
 	void updateFractal() {
-		fractal = new double[getWidth()][getHeight()];
+		if(fractal == null || fractal.length != getWidth() || fractal[0].length != getHeight()) {
+			fractal = new double[getWidth()][getHeight()];
+		}
 		for(int imageX = 0; imageX < fractal.length; imageX++) {
 			for(int imageY = 0; imageY < fractal[0].length; imageY++) {
 				Point2D.Double z = getFractalXY(new Point(imageX, imageY));
