@@ -19,6 +19,7 @@ import javax.swing.Timer;
 /* todos:
  * - add keyboard control (requires learning the focus subsystem)
  * - encapsulate the calculation of pixel values
+ * - add reuse of previous calculations where possible
  * - add customizable coloring
  *     - add color map customization
  *     - add scaling customization

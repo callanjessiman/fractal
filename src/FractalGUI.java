@@ -23,15 +23,16 @@ import javax.swing.JTextField;
  *         
  *     - D:\Callan\Backup dump\Documents\Programming\Java\workspace\MandelbrotGenerator\src (older and more complete version)
  *         - FractalGUI.java		: ?
- *         - FractalLabel.java		: ?
- *         - FractalRGB.java		: ?
- *         - Complex.java			: ?
- *         - ImageRow.java			: ?
- *         - PixelGenerator.java	: ?
- *         - FourierTransform.java	: ?
- *         - FractalSTL.java		: ?
+ *         - FractalLabel.java		: contains label/image; mostly re-implemented here, but also has APFloat and multithreading
+ *         - ImageRow.java			: Runnable row of pixel calculations; also updates progress bar and checks if double precision is sufficient
+ *         - PixelGenerator.java	: fractal and color calculation; everything Mandelbrot is re-implemented here
+ *         - Complex.java			: complex-number class I wrote for Multibrot 
+ *         - FourierTransform.java	: fourier transform of audio file for Newton fractal
+ *         - FractalRGB.java		: trivial class, forget what exactly it was for
+ *         - FractalSTL.java		: generates an STL file from the contents of a FractalLabel, for 3D printing
  *         
  *     - D:\Callan\Backup dump\Documents\School\Past\Nepean\Programming\mandelbrot.txt (OG grade 12 version, 100 lines of C++)
+ *         - very basic, doesn't have anything that isn't implemented here
  */
 
 public class FractalGUI extends JFrame {
