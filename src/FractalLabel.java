@@ -18,20 +18,22 @@ import javax.swing.Timer;
 
 /*todos:
  * - add keyboard control (requires learning the focus subsystem)
- * - add a Timer to control updates of the image
  * - encapsulate the calculation of pixel values
- * - add a better color mapping (color/log scaling)
+ * - add a better color mapping
+ *     - re-implement old color map
+ *     - add color map customization
+ *     - re-implement old log scaling
+ *     - add scaling customization
  * - multithread the calculation of pixel values
  * - add antialiasing
- * - add abort capability (on button-press or on close)
- * - add customizable color mapping
+ * - add abort capability (on button-press, new update call, or close)
  */
 
 public class FractalLabel extends JLabel {
 	private static final long serialVersionUID = 6834230068761778027L;
 
-	// fractal calculation parameters
-	double maxIter;
+	// fractal math parameters
+	int maxIter;
 	double escapeRad;
 	
 	// view parameters
@@ -123,6 +125,9 @@ public class FractalLabel extends JLabel {
 				double i0 = z.getY();
 				
 				int n = 0;
+				if(mandelTest(r0, i0)) {
+					n = maxIter;
+				}
 				double r = 0;
 				double i = 0;
 				while(n < maxIter && r*r + i*i < escapeRad){
@@ -175,6 +180,15 @@ public class FractalLabel extends JLabel {
 				(int)(fractal.length*(0.5 + dx/width) + 0.5),
 				(int)(0.5*fractal[0].length - dy*fractal.length/width + 0.5)
 		);
+	}
+	
+	// check if a point is in the simple period-1 or 2 regions of the Mandelbrot set
+	boolean mandelTest(double r, double i){
+		double rMinus = r - 0.25;
+		double rPlus = r + 1;
+		double iSquared = i*i;
+		double q = rMinus*rMinus + iSquared;
+		return q*(q + rMinus) < 0.25*iSquared || rPlus*rPlus + iSquared < 0.0625;
 	}
 }
 

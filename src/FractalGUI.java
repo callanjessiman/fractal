@@ -17,6 +17,7 @@ import javax.swing.JTextField;
 public class FractalGUI extends JFrame {
 	private static final long serialVersionUID = -7891287854194431851L;
 	
+	// components
 	FractalLabel label;
 	JPanel controlPanel;
 
