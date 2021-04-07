@@ -120,23 +120,7 @@ public class FractalLabel extends JLabel {
 		}
 		for(int imageX = 0; imageX < fractal.length; imageX++) {
 			for(int imageY = 0; imageY < fractal[0].length; imageY++) {
-				Point2D.Double z = getFractalXY(new Point(imageX, imageY));
-				double r0 = z.getX();
-				double i0 = z.getY();
-				
-				int n = 0;
-				if(mandelTest(r0, i0)) {
-					n = maxIter;
-				}
-				double r = 0;
-				double i = 0;
-				while(n < maxIter && r*r + i*i < escapeRad){
-					double rt = r;
-					r = rt*rt - i*i + r0;
-					i = 2*rt*i + i0;
-					n++;
-				}
-				fractal[imageX][imageY] = n;
+				fractal[imageX][imageY] = smoothedMandelbrotIterations(getFractalXY(new Point(imageX, imageY)));
 			}
 		}
 	}
@@ -180,6 +164,27 @@ public class FractalLabel extends JLabel {
 				(int)(fractal.length*(0.5 + dx/width) + 0.5),
 				(int)(0.5*fractal[0].length - dy*fractal.length/width + 0.5)
 		);
+	}
+	
+	// calculate the smoothed number of iterations for escape for a point in the Mandelbrot fractal
+	double smoothedMandelbrotIterations(Point2D.Double z) {
+		double r0 = z.getX();
+		double i0 = z.getY();
+		
+		int n = 0;
+		if(mandelTest(r0, i0)) {
+			n = maxIter;
+		}
+		double r = 0;
+		double i = 0;
+		while(n < maxIter && r*r + i*i < escapeRad){
+			double rt = r;
+			r = rt*rt - i*i + r0;
+			i = 2*rt*i + i0;
+			n++;
+		}
+		
+		return n;
 	}
 	
 	// check if a point is in the simple period-1 or 2 regions of the Mandelbrot set
