@@ -184,7 +184,12 @@ public class FractalLabel extends JLabel {
 			n++;
 		}
 		
-		return n;
+		if(n < maxIter) {
+			return n + 1 - Math.log(0.5*Math.log(r*r + i*i)/Math.log(2))/Math.log(2);
+		}
+		else {
+			return n;
+		}		
 	}
 	
 	// check if a point is in the simple period-1 or 2 regions of the Mandelbrot set
