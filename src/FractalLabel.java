@@ -20,7 +20,6 @@ import javax.swing.Timer;
  * - add keyboard control (requires learning the focus subsystem)
  * - encapsulate the calculation of pixel values
  * - add a better color mapping
- *     - re-implement old color map
  *     - add color map customization
  *     - re-implement old log scaling
  *     - add scaling customization
@@ -49,6 +48,25 @@ public class FractalLabel extends JLabel {
 	
 	// timer to call fractal update at a delay after last action
 	Timer updateTimer;
+	
+	// pretty colors
+	static int[][] defaultGradient = {
+		{4, 4, 73},
+		{0, 7, 100},
+		{12, 44, 138},
+		{24, 82, 177},
+		{57, 125, 209},
+		{134, 181, 229},
+		{211, 236, 248},
+		{241, 233, 191},
+		{248, 201, 95},
+		{255, 170, 0},
+		{204, 128, 4},
+		{153, 87, 0},
+		{106, 52, 3},
+		{66, 30, 15},
+		{25, 7, 26},
+	};
 	
 	FractalLabel(){
 		// set alignment and background (to achieve desired behaviour during resize)
@@ -130,13 +148,7 @@ public class FractalLabel extends JLabel {
 		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);
 		for(int i = 0; i < fractal.length; i++) {
 			for(int j = 0; j < fractal[0].length; j++) {
-				if(fractal[i][j] == maxIter) {
-					image.setRGB(i, j, Color.BLACK.getRGB());
-				}
-				else {
-					int white = (int)(255*0.5*(1 - 0.5*Math.cos(2*Math.PI*fractal[i][j]/10 + 1.2)));
-					image.setRGB(i, j, new Color(white, white, white).getRGB());
-				}
+				image.setRGB(i, j, defaultColorRGB(fractal[i][j]));
 			}
 		}
 		
@@ -199,6 +211,21 @@ public class FractalLabel extends JLabel {
 		double iSquared = i*i;
 		double q = rMinus*rMinus + iSquared;
 		return q*(q + rMinus) < 0.25*iSquared || rPlus*rPlus + iSquared < 0.0625;
+	}
+	
+	int defaultColorRGB(double n) {
+		if(n == maxIter) {
+			return Color.BLACK.getRGB();
+		}
+		int l = defaultGradient.length;
+		int n1 = ((int)n)%l;
+		int n2 = ((int)n+1)%l;
+		double w = n%1;
+		
+		int[] rgb = new int[3];
+		for(int i=0; i<3; i++)
+			rgb[i] = (int)((1-w)*defaultGradient[n1][i] + w*defaultGradient[n2][i]);
+		return new Color(rgb[0], rgb[1], rgb[2]).getRGB();
 	}
 }
 
