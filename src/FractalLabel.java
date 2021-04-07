@@ -21,7 +21,6 @@ import javax.swing.Timer;
  * - encapsulate the calculation of pixel values
  * - add a better color mapping
  *     - add color map customization
- *     - re-implement old log scaling
  *     - add scaling customization
  * - multithread the calculation of pixel values
  * - add antialiasing
@@ -67,6 +66,9 @@ public class FractalLabel extends JLabel {
 		{66, 30, 15},
 		{25, 7, 26},
 	};
+	
+	// color log scaling parameters
+	static double logScalingA = 6.36, logScalingB = 0.05363;
 	
 	FractalLabel(){
 		// set alignment and background (to achieve desired behaviour during resize)
@@ -179,14 +181,17 @@ public class FractalLabel extends JLabel {
 	}
 	
 	// calculate the smoothed number of iterations for escape for a point in the Mandelbrot fractal
-	double smoothedMandelbrotIterations(Point2D.Double z) {
-		double r0 = z.getX();
-		double i0 = z.getY();
+	double smoothedMandelbrotIterations(Point2D.Double z0) {
+		double r0 = z0.getX();
+		double i0 = z0.getY();
 		
+		// initialize iteration number, set to max if z0 is known to be in the set
 		int n = 0;
 		if(mandelTest(r0, i0)) {
 			n = maxIter;
 		}
+		
+		// iterate z_{n+1} = z_n^2 + z0
 		double r = 0;
 		double i = 0;
 		while(n < maxIter && r*r + i*i < escapeRad){
@@ -196,7 +201,9 @@ public class FractalLabel extends JLabel {
 			n++;
 		}
 		
+		// return scaled iteration number
 		if(n < maxIter) {
+			// scale based on how far the point escaped on final iteration
 			return n + 1 - Math.log(0.5*Math.log(r*r + i*i)/Math.log(2))/Math.log(2);
 		}
 		else {
@@ -204,7 +211,7 @@ public class FractalLabel extends JLabel {
 		}		
 	}
 	
-	// check if a point is in the simple period-1 or 2 regions of the Mandelbrot set
+	// check if a point is in the simple period-1, 2 regions of the Mandelbrot set
 	boolean mandelTest(double r, double i){
 		double rMinus = r - 0.25;
 		double rPlus = r + 1;
@@ -213,10 +220,17 @@ public class FractalLabel extends JLabel {
 		return q*(q + rMinus) < 0.25*iSquared || rPlus*rPlus + iSquared < 0.0625;
 	}
 	
+	// convert iteration number to color RGB code
 	int defaultColorRGB(double n) {
+		// escaped: black
 		if(n == maxIter) {
 			return Color.BLACK.getRGB();
 		}
+		
+		// log scaling for better coloring when zooming in
+		n = logScalingA*Math.log(logScalingB*n + 1);// should probably change to A*log(B*(n + 1)) + C
+		
+		// interpolate color based on scaled n
 		int l = defaultGradient.length;
 		int n1 = ((int)n)%l;
 		int n2 = ((int)n+1)%l;
@@ -225,6 +239,7 @@ public class FractalLabel extends JLabel {
 		int[] rgb = new int[3];
 		for(int i=0; i<3; i++)
 			rgb[i] = (int)((1-w)*defaultGradient[n1][i] + w*defaultGradient[n2][i]);
+		
 		return new Color(rgb[0], rgb[1], rgb[2]).getRGB();
 	}
 }
