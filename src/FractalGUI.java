@@ -3,26 +3,28 @@ import java.awt.BorderLayout;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.UIManager;
 
 // simple class to act as the top-level Component in the GUI
 
 /*todos:
  * - add a better control panel for pan/zoom/rotate
  * 		- especially a progress bar
+ * - add an icon
+ * - add keyboard control (requires learning the focus subsystem)
  * - add image saving
  * - add precise framing (place a frame in view, then use it to set view params)
- * - add an icon
  */
 
 /* old files:
  *     - C:\Users\Callan\Documents\Code\Java\OldWorkspace\FractalGenerator\src (started a re-write, didn't get very far)
  *         - FractalGUI.java		: top-level Component; everything is re-implemented here
  *         - FractalLabel.java		: contains label/image; mostly re-implemented here, but also has antialiasing and multithreading
- *         - FractalGenerator.java	: multithreaded Mandelbrot calculator; mostly re-implemented here, but also has multithreading
+ *         - FractalGenerator.java	: multithreaded Mandelbrot calculator; everything is re-implemented here
  *         - FractalColorModel.java	: gradient and scaling; everything is re-implemented here
  *         
  *     - D:\Callan\Backup dump\Documents\Programming\Java\workspace\MandelbrotGenerator\src (older and more complete version)
- *         - FractalGUI.java		: ?
+ *         - FractalGUI.java		: top-level Component; mostly re-implemented here, but also has a good control panel and menu bar
  *         - FractalLabel.java		: contains label/image; mostly re-implemented here, but also has APFloat and multithreading
  *         - ImageRow.java			: Runnable row of pixel calculations; also updates progress bar and checks if double precision is sufficient
  *         - PixelGenerator.java	: fractal and color calculation; everything Mandelbrot is re-implemented here
@@ -48,6 +50,9 @@ public class FractalGUI extends JFrame {
 		setSize(400, 400);
 		setLocation(80, 60);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		try {
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		} catch (Exception e){ e.printStackTrace(); }
 		
 		// add components
 		setLayout(new BorderLayout());
@@ -55,6 +60,7 @@ public class FractalGUI extends JFrame {
 		label = new FractalLabel();
 		add(label, BorderLayout.CENTER);
 		
+		// controlPanel holds all of the Components for controlling the fractal; can be removed with setVisible()
 		controlPanel = new JPanel();
 		controlPanel.setLayout(new BorderLayout());
 		JTextField placeholderText = new JTextField("Placeholder");

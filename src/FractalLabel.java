@@ -17,15 +17,14 @@ import javax.swing.Timer;
 // class which is Component showing the rendered image, and which also contains the view parameters and methods for interaction
 
 /* todos:
- * - add keyboard control (requires learning the focus subsystem)
  * - encapsulate the calculation of pixel values
+ * - multithread the calculation of pixel values
  * - add reuse of previous calculations where possible
+ * - add antialiasing
+ * - add abort capability (on button-press, new update call, or close)
  * - add customizable coloring
  *     - add color map customization
  *     - add scaling customization
- * - multithread the calculation of pixel values
- * - add antialiasing
- * - add abort capability (on button-press, new update call, or close)
  */
 
 public class FractalLabel extends JLabel {
@@ -72,7 +71,7 @@ public class FractalLabel extends JLabel {
 	static double logScalingA = 6.36, logScalingB = 0.05363;
 	
 	FractalLabel(){
-		// set alignment and background (to achieve desired behaviour during resize)
+		// set alignment and background so resizing looks nice
 		setHorizontalAlignment(CENTER);
 		setVerticalAlignment(CENTER);
 		setBackground(Color.BLACK);
