@@ -2,7 +2,7 @@ import java.awt.geom.Point2D;
 
 // class that has static methods to calculate fractals and implements Runnable for mutithreaded execution (maybe should switch to Callable?)
 
-/* todos:
+/* TODO:
  * - add specific return values for points that don't escape/won't escape/etc
  */
 
@@ -15,7 +15,7 @@ public class FractalCalculator implements Runnable{
 	double[][] fractal;
 	int[][] indices;
 	
-	// general parameters
+	// general calculation parameters
 	int maxIter;
 	double escape;
 
@@ -34,13 +34,13 @@ public class FractalCalculator implements Runnable{
 		}
 	}
 
-	// function to calculate the value of the Mandelbrot fractal at a point
+	// calculate the value of the Mandelbrot fractal at a point
 	static double MandelbrotPoint(Point2D.Double z0, int maxIter, double escapeRad) {
 		double r0 = z0.getX();
 		double i0 = z0.getY();
 		int n = 0;
 		
-		// return max if z0 is known to be in the set
+		// return maxIter if z0 is known to be in the set
 		if(mandelTest(r0, i0)) {
 			return maxIter;
 		}
@@ -55,12 +55,12 @@ public class FractalCalculator implements Runnable{
 			n++;
 		}
 		
-		// return scaled iteration number
 		if(n < maxIter) {
-			// scale based on how far the point escaped on final iteration
+			// return iteration number, scaled based on how far the point escaped on final iteration
 			return n + 1 - Math.log(0.5*Math.log(r*r + i*i)/Math.log(2))/Math.log(2);
 		}
 		else {
+			// return n if >= (should only be =) maxIter
 			return n;
 		}
 	}

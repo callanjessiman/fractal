@@ -21,11 +21,12 @@ import javax.swing.Timer;
 
 // class which is the Component showing the rendered image, and which also contains the view parameters and methods for interaction
 
-/* todos:
+/* TODO:
  * - add reuse of previous calculations where possible
  * - add antialiasing (MSAA, but possibly also over/undersampling)
  * - improve abort capability (to address tearing on resize)
- * - add customizable coloring
+ *     - put update methods in their own threads?
+ * - add customizable and encapsulated coloring
  *     - add color map customization
  *     - add scaling customization
  */
@@ -51,7 +52,7 @@ public class FractalLabel extends JLabel {
 	// timer to call fractal update at a delay after last action
 	Timer updateTimer;
 	
-
+	// ExecutorService for multithreaded fractal calculation
 	ExecutorService threadPool;
 	
 	// pretty colors
@@ -153,21 +154,28 @@ public class FractalLabel extends JLabel {
 			}
 		});
 		
+		// redeclare fractal if necessary
 		if(fractal == null || fractal.length != getWidth() || fractal[0].length != getHeight()) {
 			fractal = new double[getWidth()][getHeight()];
 		}
+		
+		// execute Runnable calculation
 		for(int imageX = 0; imageX < fractal.length; imageX++) {
-			// indices of fractal to calculate for this row
-			int[][] indices = new int[fractal[0].length][2];
+			// points at which to calculate the value of the fractal, and indices at which to save the values, for this row (imageX value)
 			Point2D.Double[] points = new Point2D.Double[fractal[0].length];
+			int[][] indices = new int[fractal[0].length][2];
 			for(int imageY = 0; imageY < fractal[0].length; imageY++) {
 				indices[imageY][0] = imageX;
 				indices[imageY][1] = imageY;
 				points[imageY] = getFractalXY(new Point(imageX, imageY));
 			}
+			
+			// submit this row to the ExecutorService
 			threadPool.execute(new FractalCalculator(fractal, indices, points, maxIter, escapeRad));
 			threads++;
 		}		
+		
+		// wait until all threads have completed
 		threadPool.shutdown();
 		try {
 			threadPool.awaitTermination(1, TimeUnit.SECONDS);
@@ -175,12 +183,15 @@ public class FractalLabel extends JLabel {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
 		System.out.println(String.format("Done updating fractal (%s cores, %s threads, %.2f seconds)", cores, threads, 0.001*(System.currentTimeMillis() - startTime)));
 	}
 
 	// recreate fractal image to match fractal array
 	void updateImage() {
 		System.out.println("Updating image... ");	
+		
+		// create new image and render the contents of the fractal array to it
 		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);				
 		for(int i = 0; i < fractal.length; i++) {
 			for(int j = 0; j < fractal[0].length; j++) {
@@ -188,20 +199,20 @@ public class FractalLabel extends JLabel {
 			}
 		}
 		
+		// update GUI with new image
 		icon.setImage(image);
 		updateUI();
+		
 		System.out.println("Done updating image");
 	}
 	
+	// abort fractal calculation
 	void abort() {
 		if(threadPool != null) {
 			threadPool.shutdownNow();
 			try {
 				threadPool.awaitTermination(1, TimeUnit.SECONDS);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			} catch (InterruptedException e) { e.printStackTrace(); }
 		}
 	}
 	
@@ -229,12 +240,12 @@ public class FractalLabel extends JLabel {
 	
 	// convert iteration number to color RGB code
 	int defaultColorRGB(double n) {
-		// escaped: black
+		// return black if point didn't escape
 		if(n == maxIter) {
 			return Color.BLACK.getRGB();
 		}
 		
-		// log scaling for better coloring when zooming in
+		// log-scale n for better coloring when zooming in
 		n = logScalingA*Math.log(logScalingB*n + 1);// should probably change to A*log(B*(n + 1)) + C
 		
 		// interpolate color based on scaled n
