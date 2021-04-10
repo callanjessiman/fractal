@@ -1,4 +1,6 @@
 import java.awt.BorderLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -19,7 +21,7 @@ import javax.swing.UIManager;
 /* old files:
  *     - C:\Users\Callan\Documents\Code\Java\OldWorkspace\FractalGenerator\src (started a re-write, didn't get very far)
  *         - FractalGUI.java		: top-level Component; everything is re-implemented here
- *         - FractalLabel.java		: contains label/image; mostly re-implemented here, but also has antialiasing and multithreading
+ *         - FractalLabel.java		: contains label/image; mostly re-implemented here, but also has antialiasing
  *         - FractalGenerator.java	: multithreaded Mandelbrot calculator; everything is re-implemented here
  *         - FractalColorModel.java	: gradient and scaling; everything is re-implemented here
  *         
@@ -69,6 +71,11 @@ public class FractalGUI extends JFrame {
 		add(controlPanel, BorderLayout.EAST);
 		
 		// initialize components (before showing frame)
+		addWindowListener(new WindowAdapter(){
+		    public void windowClosing(WindowEvent e) {
+		        label.abort();
+		    }
+		});
 		
 		// show frame
 		setVisible(true);
