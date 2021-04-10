@@ -10,18 +10,21 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.Timer;
 
-// class which is Component showing the rendered image, and which also contains the view parameters and methods for interaction
+// class which is the Component showing the rendered image, and which also contains the view parameters and methods for interaction
 
 /* todos:
- * - encapsulate the calculation of pixel values
- * - multithread the calculation of pixel values
  * - add reuse of previous calculations where possible
- * - add antialiasing
- * - add abort capability (on button-press, new update call, or close)
+ * - add antialiasing (MSAA, but possibly also over/undersampling)
+ * - improve abort capability (to address tearing on resize)
  * - add customizable coloring
  *     - add color map customization
  *     - add scaling customization
@@ -47,6 +50,9 @@ public class FractalLabel extends JLabel {
 	
 	// timer to call fractal update at a delay after last action
 	Timer updateTimer;
+	
+
+	ExecutorService threadPool;
 	
 	// pretty colors
 	static int[][] defaultGradient = {
@@ -81,17 +87,17 @@ public class FractalLabel extends JLabel {
 		icon = new ImageIcon();
 		setIcon(icon);
 		
-		//initialize fractal parameters
+		// initialize fractal parameters
 		maxIter = 1000;
 		escapeRad = 420.69;
 		
-		//initialize view parameters
+		// initialize view parameters
 		centerX = -0.69;
 		centerY = 0;
 		width = 5;
 		rotation = 0;
 
-		//add listeners
+		// add listeners
 		addComponentListener(new ComponentAdapter() {
 			// on window resize, start update timer
 			public void componentResized(ComponentEvent e) {
@@ -123,11 +129,8 @@ public class FractalLabel extends JLabel {
 		updateTimer = new Timer(100, new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				// at a delay after the last call to update timer, update fractal
-				System.out.print("Updating fractal... ");
 				updateFractal();
-				System.out.print("done\nUpdating image... ");
 				updateImage();
-				System.out.println("done");
 			}
 		});
 		updateTimer.setRepeats(false);
@@ -135,19 +138,50 @@ public class FractalLabel extends JLabel {
 	
 	// recreate fractal array to match current window size and fractal and view parameters
 	void updateFractal() {
+		System.out.println("Updating fractal...");
+		long startTime = System.currentTimeMillis();
+		int threads = 0;
+		
+		// initialize ThreadPool
+		abort();
+		int cores = Runtime.getRuntime().availableProcessors();		
+		threadPool = Executors.newFixedThreadPool(cores, new ThreadFactory(){
+			public Thread newThread(Runnable r){
+				Thread t = new Thread(r);
+				t.setPriority(Thread.MIN_PRIORITY);// priority is 1-10
+				return t;
+			}
+		});
+		
 		if(fractal == null || fractal.length != getWidth() || fractal[0].length != getHeight()) {
 			fractal = new double[getWidth()][getHeight()];
 		}
 		for(int imageX = 0; imageX < fractal.length; imageX++) {
+			// indices of fractal to calculate for this row
+			int[][] indices = new int[fractal[0].length][2];
+			Point2D.Double[] points = new Point2D.Double[fractal[0].length];
 			for(int imageY = 0; imageY < fractal[0].length; imageY++) {
-				fractal[imageX][imageY] = smoothedMandelbrotIterations(getFractalXY(new Point(imageX, imageY)));
+				indices[imageY][0] = imageX;
+				indices[imageY][1] = imageY;
+				points[imageY] = getFractalXY(new Point(imageX, imageY));
 			}
+			threadPool.execute(new FractalCalculator(fractal, indices, points, maxIter, escapeRad));
+			threads++;
+		}		
+		threadPool.shutdown();
+		try {
+			threadPool.awaitTermination(1, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
+		System.out.println(String.format("Done updating fractal (%s cores, %s threads, %.2f seconds)", cores, threads, 0.001*(System.currentTimeMillis() - startTime)));
 	}
 
 	// recreate fractal image to match fractal array
-	void updateImage() {		
-		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);
+	void updateImage() {
+		System.out.println("Updating image... ");	
+		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);				
 		for(int i = 0; i < fractal.length; i++) {
 			for(int j = 0; j < fractal[0].length; j++) {
 				image.setRGB(i, j, defaultColorRGB(fractal[i][j]));
@@ -156,6 +190,19 @@ public class FractalLabel extends JLabel {
 		
 		icon.setImage(image);
 		updateUI();
+		System.out.println("Done updating image");
+	}
+	
+	void abort() {
+		if(threadPool != null) {
+			threadPool.shutdownNow();
+			try {
+				threadPool.awaitTermination(1, TimeUnit.SECONDS);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	// convert a point in image space to fractal space
@@ -178,46 +225,6 @@ public class FractalLabel extends JLabel {
 				(int)(fractal.length*(0.5 + dx/width) + 0.5),
 				(int)(0.5*fractal[0].length - dy*fractal.length/width + 0.5)
 		);
-	}
-	
-	// calculate the smoothed number of iterations for escape for a point in the Mandelbrot fractal
-	double smoothedMandelbrotIterations(Point2D.Double z0) {
-		double r0 = z0.getX();
-		double i0 = z0.getY();
-		
-		// initialize iteration number, set to max if z0 is known to be in the set
-		int n = 0;
-		if(mandelTest(r0, i0)) {
-			n = maxIter;
-		}
-		
-		// iterate z_{n+1} = z_n^2 + z0
-		double r = 0;
-		double i = 0;
-		while(n < maxIter && r*r + i*i < escapeRad){
-			double rt = r;
-			r = rt*rt - i*i + r0;
-			i = 2*rt*i + i0;
-			n++;
-		}
-		
-		// return scaled iteration number
-		if(n < maxIter) {
-			// scale based on how far the point escaped on final iteration
-			return n + 1 - Math.log(0.5*Math.log(r*r + i*i)/Math.log(2))/Math.log(2);
-		}
-		else {
-			return n;
-		}		
-	}
-	
-	// check if a point is in the simple period-1, 2 regions of the Mandelbrot set
-	boolean mandelTest(double r, double i){
-		double rMinus = r - 0.25;
-		double rPlus = r + 1;
-		double iSquared = i*i;
-		double q = rMinus*rMinus + iSquared;
-		return q*(q + rMinus) < 0.25*iSquared || rPlus*rPlus + iSquared < 0.0625;
 	}
 	
 	// convert iteration number to color RGB code
