@@ -3,6 +3,8 @@ import java.awt.geom.Point2D;
 // class that has static methods to calculate fractals and implements Runnable for mutithreaded execution (maybe should switch to Callable?)
 
 /* TODO:
+ * - try out the periodicity-checking algorithm from Wikipedia
+ * - improve maximum resolution through arbitrary-precision BigDecimal and/or perturbation theory (see Wikipedia)
  * - add specific return values for points that don't escape/won't escape/etc
  */
 
