@@ -10,7 +10,7 @@ import javax.swing.UIManager;
 // simple class to act as the top-level Component in the GUI
 
 /*todos:
- * - add a better control panel for pan/zoom/rotate
+ * - add a better control panel for pan/zoom/rotate/etc
  * 		- especially a progress bar
  * - add an icon
  * - add keyboard control (requires learning the focus subsystem)
