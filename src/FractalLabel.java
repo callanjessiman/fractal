@@ -26,6 +26,8 @@ import javax.swing.Timer;
  * - add antialiasing (MSAA, but possibly also over/undersampling)
  * - improve abort capability (to address tearing on resize)
  *     - put update methods in their own threads?
+ * - make coloring independent of gradient length (easy)
+ * - figure out how to do coloring properly by examining how iteration counts change from one repeated pattern to the next
  * - add customizable and encapsulated coloring
  *     - add color map customization
  *     - add scaling customization
@@ -71,11 +73,10 @@ public class FractalLabel extends JLabel {
 		{153, 87, 0},
 		{106, 52, 3},
 		{66, 30, 15},
-		{25, 7, 26},
 	};
 	
 	// color log scaling parameters
-	static double logScalingA = 6.36, logScalingB = 0.05363;
+	static double logScalingA = 6.4, logScalingB = 0.05;
 	
 	FractalLabel(){
 		// set alignment and background so resizing looks nice
@@ -179,10 +180,7 @@ public class FractalLabel extends JLabel {
 		threadPool.shutdown();
 		try {
 			threadPool.awaitTermination(1, TimeUnit.SECONDS);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		} catch (InterruptedException e) { e.printStackTrace(); }
 		
 		System.out.println(String.format("Done updating fractal (%s cores, %s threads, %.2f seconds)", cores, threads, 0.001*(System.currentTimeMillis() - startTime)));
 	}
@@ -250,6 +248,9 @@ public class FractalLabel extends JLabel {
 		
 		// interpolate color based on scaled n
 		int l = defaultGradient.length;
+		while(n < 0) {
+			n += l;
+		}
 		int n1 = ((int)n)%l;
 		int n2 = ((int)n+1)%l;
 		double w = n%1;

@@ -9,12 +9,13 @@ import javax.swing.UIManager;
 
 // simple class to act as the top-level Component in the GUI
 
-/*todos:
+/*TODO:
  * - add a better control panel for pan/zoom/rotate/etc
  * 		- especially a progress bar
  * - add an icon
  * - add keyboard control (requires learning the focus subsystem)
  * - add image saving
+ *     - try to add fractal information in image metadata (use ImageReader/ImageWriter)
  * - add precise framing (place a frame in view, then use it to set view params)
  */
 
@@ -29,7 +30,7 @@ import javax.swing.UIManager;
  *         - FractalGUI.java		: top-level Component; mostly re-implemented here, but also has a good control panel and menu bar
  *         - FractalLabel.java		: contains label/image; mostly re-implemented here, but also has APFloat and multithreading
  *         - ImageRow.java			: Runnable row of pixel calculations; also updates progress bar and checks if double precision is sufficient
- *         - PixelGenerator.java	: fractal and color calculation; everything Mandelbrot is re-implemented here
+ *         - PixelGenerator.java	: fractal and color calculation; everything Mandelbrot is re-implemented here, but has somewhat better color scaling
  *         - Complex.java			: complex-number class I wrote for Multibrot 
  *         - FourierTransform.java	: fourier transform of audio file for Newton fractal
  *         - FractalRGB.java		: trivial class, forget what exactly it was for
@@ -81,8 +82,9 @@ public class FractalGUI extends JFrame {
 		setVisible(true);
 		
 		// initialize components (after showing frame)
-		label.updateFractal();
-		label.updateImage();
+		// currently, building the frame creates a ResizeEvent that does these automatically
+		// label.updateFractal();
+		// label.updateImage();
 	}
 
 	public static void main(String[] args) {
