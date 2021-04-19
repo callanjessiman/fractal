@@ -3,7 +3,6 @@ import java.awt.geom.Point2D;
 // class that has static methods to calculate fractals and implements Runnable for mutithreaded execution (maybe should switch to Callable?)
 
 /* TODO:
- * - add specific return values for points that don't escape/won't escape/etc
  * - improve maximum resolution through arbitrary-precision BigDecimal and/or perturbation theory (see Wikipedia)
  * - try exploiting the set's connectedness
  * - try out the periodicity-checking algorithm from Wikipedia
@@ -21,6 +20,11 @@ public class FractalCalculator implements Runnable{
 	// general calculation parameters
 	int maxIter;
 	double escape;
+	
+	// return values for special cases
+	static double NOT_CALCULATED = -1;
+	static double REACHED_MAXITER = -2;
+	static double IN_SET = -3;
 
 	FractalCalculator(double[][] f, int[][] i, Point2D.Double[] p, int m, double e) {
 		fractal = f;
@@ -41,16 +45,17 @@ public class FractalCalculator implements Runnable{
 	static double MandelbrotPoint(Point2D.Double z0, int maxIter, double escapeRad) {
 		double r0 = z0.getX();
 		double i0 = z0.getY();
-		int n = 0;
 		
-		// return maxIter if z0 is known to be in the set
+		// return special value if z0 is known to be in the set
 		if(mandelTest(r0, i0)) {
-			return maxIter;
+			return IN_SET;
 		}
 		
 		// iterate z_{n+1} = z_n^2 + z0
+		int n = 0;
 		double r = 0;
 		double i = 0;
+		
 		while(n < maxIter && r*r + i*i < escapeRad){
 			double rt = r;
 			r = rt*rt - i*i + r0;
@@ -58,14 +63,14 @@ public class FractalCalculator implements Runnable{
 			n++;
 		}
 		
-		if(n < maxIter) {
-			// return iteration number, scaled based on how far the point escaped on final iteration
+		// if escaped, return interpolated iteration number
+		if(r*r + i*i >= escapeRad) {
+			// should probably look into exactly how this works; it doesn't seem to conserve integer iteration numbers
 			return n + 1 - Math.log(0.5*Math.log(r*r + i*i)/Math.log(2))/Math.log(2);
 		}
-		else {
-			// return n if >= (should only be =) maxIter
-			return n;
-		}
+		
+		// return special value if we reached maxIter without escaping
+		return REACHED_MAXITER;
 	}
 	
 	// check if a point is in the simple period-1, 2 regions of the Mandelbrot set

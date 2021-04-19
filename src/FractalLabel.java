@@ -55,9 +55,9 @@ public class FractalLabel extends JLabel {
 	// timer to call fractal update at a delay after last action
 	Timer updateTimer;
 	
-	// Objects for multithreading fractal calculation
-	SwingWorker<Object, Object> updateWorker;
+	// objects to handle multithreading
 	ThreadFactory fractalThreadFactory;
+	SwingWorker<Object, Object> updateWorker;
 	ExecutorService fractalThreadPool;
 	
 	// pretty colors
@@ -141,9 +141,10 @@ public class FractalLabel extends JLabel {
 		});
 		
 		updateTimer = new Timer(100, new ActionListener() {
+			// at a delay after the last call to update timer, abort previous update and update fractal
 			public void actionPerformed(ActionEvent e) {
-				// at a delay after the last call to update timer, update fractal
 				abort();
+				// create new SwingWorker to run update, so it runs in the background and can be aborted if necessary
 				updateWorker = new SwingWorker<Object, Object>(){
 			        protected Object doInBackground(){
 						updateFractal();
@@ -256,7 +257,7 @@ public class FractalLabel extends JLabel {
 	// convert iteration number to color RGB code
 	int defaultColorRGB(double n) {
 		// return black if point didn't escape
-		if(n == maxIter) {
+		if(n == FractalCalculator.REACHED_MAXITER || n == FractalCalculator.IN_SET) {
 			return Color.BLACK.getRGB();
 		}
 		
