@@ -23,10 +23,9 @@ import javax.swing.Timer;
 // class which is the Component showing the rendered image, and which also contains the view parameters and methods for interaction
 
 /* TODO:
+ * - figure out how to make shutdown() and awaitTermination() (in updateFractal()) work properly
  * - add reuse of previous calculations where possible
  * - add antialiasing (MSAA, but possibly also over/undersampling)
- * - improve abort capability (to address tearing on resize)
- *     - put update methods in their own threads?
  * - make coloring independent of gradient length (easy)
  * - figure out how to do coloring properly by examining how iteration counts change from one repeated pattern to the next
  * - add customizable and encapsulated coloring
@@ -162,11 +161,12 @@ public class FractalLabel extends JLabel {
 	void updateFractal() {
 		System.out.println("Updating fractal...");
 		long startTime = System.currentTimeMillis();
-		int threads = 0;
+		int nRunnables = 0;
 		
 		// initialize ThreadPool
-		int cores = Runtime.getRuntime().availableProcessors();		
-		fractalThreadPool = Executors.newFixedThreadPool(cores, fractalThreadFactory);
+		// efficiency seems to increase with nThreads until nThreads = [CPU nThreads], and slowly decrease above that
+		int nThreads = Runtime.getRuntime().availableProcessors();		
+		fractalThreadPool = Executors.newFixedThreadPool(nThreads, fractalThreadFactory);
 		
 		// redeclare fractal if necessary
 		if(fractal == null || fractal.length != getWidth() || fractal[0].length != getHeight()) {
@@ -186,18 +186,19 @@ public class FractalLabel extends JLabel {
 			
 			// submit this row to the ExecutorService
 			fractalThreadPool.execute(new FractalCalculator(fractal, indices, points, maxIter, escapeRad));
-			threads++;
+			nRunnables++;
 		}		
 		
 		// wait until all threads have completed, unless thread pool has been externally shut down
+		// I don't think this works how I think it works
 		if(!fractalThreadPool.isShutdown()) {
 			fractalThreadPool.shutdown();
 			try {
-				fractalThreadPool.awaitTermination(1, TimeUnit.SECONDS);
+				fractalThreadPool.awaitTermination(1, TimeUnit.DAYS);
 			} catch (InterruptedException e) { System.out.println("Interrupted ThreadPool shutdown in FractalLabel.updateFractal()"); }
 		}
 		
-		System.out.println(String.format("Done updating fractal (%s cores, %s threads, %.2f seconds)", cores, threads, 0.001*(System.currentTimeMillis() - startTime)));
+		System.out.println(String.format("Done updating fractal (%s threads, %s processes, %.2f seconds)", nThreads, nRunnables, 0.001*(System.currentTimeMillis() - startTime)));
 	}
 
 	// recreate fractal image to match fractal array
