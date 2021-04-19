@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
+import javax.swing.SwingWorker;
 import javax.swing.Timer;
 
 // class which is the Component showing the rendered image, and which also contains the view parameters and methods for interaction
@@ -54,8 +55,10 @@ public class FractalLabel extends JLabel {
 	// timer to call fractal update at a delay after last action
 	Timer updateTimer;
 	
-	// ExecutorService for multithreaded fractal calculation
-	ExecutorService threadPool;
+	// Objects for multithreading fractal calculation
+	SwingWorker<Object, Object> updateWorker;
+	ThreadFactory fractalThreadFactory;
+	ExecutorService fractalThreadPool;
 	
 	// pretty colors
 	static int[][] defaultGradient = {
@@ -98,6 +101,15 @@ public class FractalLabel extends JLabel {
 		centerY = 0;
 		width = 5;
 		rotation = 0;
+		
+		// set up multithreading
+		fractalThreadFactory = new ThreadFactory(){
+			public Thread newThread(Runnable r){
+				Thread t = new Thread(r);
+				t.setPriority(Thread.MIN_PRIORITY);// priority is 1-10
+				return t;
+			}
+		};
 
 		// add listeners
 		addComponentListener(new ComponentAdapter() {
@@ -131,8 +143,15 @@ public class FractalLabel extends JLabel {
 		updateTimer = new Timer(100, new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				// at a delay after the last call to update timer, update fractal
-				updateFractal();
-				updateImage();
+				abort();
+				updateWorker = new SwingWorker<Object, Object>(){
+			        protected Object doInBackground(){
+						updateFractal();
+						updateImage();
+						return null;
+			        }
+			    };
+				updateWorker.execute();	
 			}
 		});
 		updateTimer.setRepeats(false);
@@ -145,15 +164,8 @@ public class FractalLabel extends JLabel {
 		int threads = 0;
 		
 		// initialize ThreadPool
-		abort();
 		int cores = Runtime.getRuntime().availableProcessors();		
-		threadPool = Executors.newFixedThreadPool(cores, new ThreadFactory(){
-			public Thread newThread(Runnable r){
-				Thread t = new Thread(r);
-				t.setPriority(Thread.MIN_PRIORITY);// priority is 1-10
-				return t;
-			}
-		});
+		fractalThreadPool = Executors.newFixedThreadPool(cores, fractalThreadFactory);
 		
 		// redeclare fractal if necessary
 		if(fractal == null || fractal.length != getWidth() || fractal[0].length != getHeight()) {
@@ -172,15 +184,17 @@ public class FractalLabel extends JLabel {
 			}
 			
 			// submit this row to the ExecutorService
-			threadPool.execute(new FractalCalculator(fractal, indices, points, maxIter, escapeRad));
+			fractalThreadPool.execute(new FractalCalculator(fractal, indices, points, maxIter, escapeRad));
 			threads++;
 		}		
 		
-		// wait until all threads have completed
-		threadPool.shutdown();
-		try {
-			threadPool.awaitTermination(1, TimeUnit.SECONDS);
-		} catch (InterruptedException e) { e.printStackTrace(); }
+		// wait until all threads have completed, unless thread pool has been externally shut down
+		if(!fractalThreadPool.isShutdown()) {
+			fractalThreadPool.shutdown();
+			try {
+				fractalThreadPool.awaitTermination(1, TimeUnit.SECONDS);
+			} catch (InterruptedException e) { System.out.println("Interrupted ThreadPool shutdown in FractalLabel.updateFractal()"); }
+		}
 		
 		System.out.println(String.format("Done updating fractal (%s cores, %s threads, %.2f seconds)", cores, threads, 0.001*(System.currentTimeMillis() - startTime)));
 	}
@@ -206,10 +220,13 @@ public class FractalLabel extends JLabel {
 	
 	// abort fractal calculation
 	void abort() {
-		if(threadPool != null) {
-			threadPool.shutdownNow();
+		if(updateWorker != null && !(updateWorker.isCancelled() || updateWorker.isDone())) {
+			updateWorker.cancel(true);
+		}
+		if(fractalThreadPool != null) {
+			fractalThreadPool.shutdownNow();
 			try {
-				threadPool.awaitTermination(1, TimeUnit.SECONDS);
+				fractalThreadPool.awaitTermination(1, TimeUnit.SECONDS);
 			} catch (InterruptedException e) { e.printStackTrace(); }
 		}
 	}
