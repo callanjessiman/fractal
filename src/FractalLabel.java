@@ -161,11 +161,13 @@ public class FractalLabel extends JLabel {
 	void updateFractal() {
 		System.out.println("Updating fractal...");
 		long startTime = System.currentTimeMillis();
-		int nRunnables = 0;
 		
 		// initialize ThreadPool
 		// efficiency seems to increase with nThreads until nThreads = [CPU nThreads], and slowly decrease above that
-		int nThreads = Runtime.getRuntime().availableProcessors();		
+		int nThreads = Runtime.getRuntime().availableProcessors();
+		// number of processes to use
+		// efficiency seems to plateau between 1k and 10k Runnables (for 1MP of fractal mostly reaching maxiter = 1000)
+		int nRunnables = 4000;
 		fractalThreadPool = Executors.newFixedThreadPool(nThreads, fractalThreadFactory);
 		
 		// redeclare fractal if necessary
@@ -174,20 +176,25 @@ public class FractalLabel extends JLabel {
 		}
 		
 		// execute Runnable calculation
-		for(int imageX = 0; imageX < fractal.length; imageX++) {
-			// points at which to calculate the value of the fractal, and indices at which to save the values, for this row (imageX value)
-			Point2D.Double[] points = new Point2D.Double[fractal[0].length];
-			int[][] indices = new int[fractal[0].length][2];
-			for(int imageY = 0; imageY < fractal[0].length; imageY++) {
-				indices[imageY][0] = imageX;
-				indices[imageY][1] = imageY;
-				points[imageY] = getFractalXY(new Point(imageX, imageY));
+		int pixelsPerRunnable = fractal.length*fractal[0].length/nRunnables;
+		int leftover = fractal.length*fractal[0].length - pixelsPerRunnable*nRunnables;
+		for(int p = 0; p < nRunnables; p++) {
+			int start = pixelsPerRunnable*p + Math.min(p, leftover);
+			int end = start + pixelsPerRunnable;
+			if(p < leftover) {
+				end += 1;
 			}
-			
-			// submit this row to the ExecutorService
+			Point2D.Double[] points = new Point2D.Double[end - start];
+			int[][] indices = new int[end - start][2];
+			for(int i1d=start; i1d < end; i1d++) {
+				int imageX = i1d/fractal[0].length;
+				int imageY = i1d%fractal[0].length;
+				points[i1d - start] = getFractalXY(new Point(imageX, imageY));
+				indices[i1d - start][0] = imageX;
+				indices[i1d - start][1] = imageY;
+			}
 			fractalThreadPool.execute(new FractalCalculator(fractal, indices, points, maxIter, escapeRad));
-			nRunnables++;
-		}		
+		}
 		
 		// wait until all threads have completed, unless thread pool has been externally shut down
 		// I don't think this works how I think it works
