@@ -10,6 +10,7 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -23,8 +24,9 @@ import javax.swing.Timer;
 // class which is the Component showing the rendered image, and which also contains the view parameters and methods for interaction
 
 /* TODO:
- * - figure out how to make shutdown() and awaitTermination() (in updateFractal()) work properly
  * - add reuse of previous calculations where possible
+ * - add option to use less threads
+ * - figure out how to make shutdown() and awaitTermination() (in updateFractal()) work properly
  * - add antialiasing (MSAA, but possibly also over/undersampling)
  * - make coloring independent of gradient length (easy)
  * - figure out how to do coloring properly by examining how iteration counts change from one repeated pattern to the next
@@ -35,6 +37,9 @@ import javax.swing.Timer;
 
 public class FractalLabel extends JLabel {
 	private static final long serialVersionUID = 6834230068761778027L;
+	
+	// efficiency seems to plateau between 1k and 10k Runnables (for 1MP of fractal mostly reaching maxiter = 1000)
+	static int N_RUNNABLES = 4000;
 
 	// fractal math parameters
 	int maxIter;
@@ -165,33 +170,40 @@ public class FractalLabel extends JLabel {
 		// initialize ThreadPool
 		// efficiency seems to increase with nThreads until nThreads = [CPU nThreads], and slowly decrease above that
 		int nThreads = Runtime.getRuntime().availableProcessors();
-		// number of processes to use
-		// efficiency seems to plateau between 1k and 10k Runnables (for 1MP of fractal mostly reaching maxiter = 1000)
-		int nRunnables = 4000;
 		fractalThreadPool = Executors.newFixedThreadPool(nThreads, fractalThreadFactory);
 		
-		// redeclare fractal if necessary
-		if(fractal == null || fractal.length != getWidth() || fractal[0].length != getHeight()) {
-			fractal = new double[getWidth()][getHeight()];
+		// redeclare fractal
+		// this should go in the Listeners and so on that make the fractal array outdated, so they can appropriately set new size or reuse values
+		fractal = new double[getWidth()][getHeight()];
+		for(int i=0; i<fractal.length; i++) {
+			for(int j=0; j<fractal[0].length; j++) {
+				fractal[i][j] = FractalCalculator.NOT_CALCULATED;
+			}
 		}
 		
 		// execute Runnable calculation
-		int pixelsPerRunnable = fractal.length*fractal[0].length/nRunnables;
-		int leftover = fractal.length*fractal[0].length - pixelsPerRunnable*nRunnables;
-		for(int p = 0; p < nRunnables; p++) {
+		ArrayList<Point> allIndices = new ArrayList<Point>();
+		for(int i=0; i<fractal.length; i++) {
+			for(int j=0; j<fractal[0].length; j++) {
+				if(fractal[i][j] == FractalCalculator.NOT_CALCULATED) {
+					allIndices.add(new Point(i, j));
+				}
+			}
+		}
+		int pixelsPerRunnable = allIndices.size()/N_RUNNABLES;
+		int leftover = allIndices.size() - pixelsPerRunnable*N_RUNNABLES;
+		for(int p = 0; p < N_RUNNABLES; p++) {
 			int start = pixelsPerRunnable*p + Math.min(p, leftover);
 			int end = start + pixelsPerRunnable;
 			if(p < leftover) {
 				end += 1;
 			}
-			Point2D.Double[] points = new Point2D.Double[end - start];
 			int[][] indices = new int[end - start][2];
-			for(int i1d=start; i1d < end; i1d++) {
-				int imageX = i1d/fractal[0].length;
-				int imageY = i1d%fractal[0].length;
-				points[i1d - start] = getFractalXY(new Point(imageX, imageY));
-				indices[i1d - start][0] = imageX;
-				indices[i1d - start][1] = imageY;
+			Point2D.Double[] points = new Point2D.Double[end - start];
+			for(int i1d = start; i1d < end; i1d++) {
+				indices[i1d - start][0] = allIndices.get(i1d).x;
+				indices[i1d - start][1] = allIndices.get(i1d).y;
+				points[i1d - start] = getFractalXY(new Point(indices[i1d - start][0], indices[i1d - start][1]));
 			}
 			fractalThreadPool.execute(new FractalCalculator(fractal, indices, points, maxIter, escapeRad));
 		}
@@ -205,7 +217,7 @@ public class FractalLabel extends JLabel {
 			} catch (InterruptedException e) { System.out.println("Interrupted ThreadPool shutdown in FractalLabel.updateFractal()"); }
 		}
 		
-		System.out.println(String.format("Done updating fractal (%s threads, %s processes, %.2f seconds)", nThreads, nRunnables, 0.001*(System.currentTimeMillis() - startTime)));
+		System.out.println(String.format("Done updating fractal (%s threads, %s processes, %.2f seconds)", nThreads, N_RUNNABLES, 0.001*(System.currentTimeMillis() - startTime)));
 	}
 
 	// recreate fractal image to match fractal array
