@@ -21,10 +21,22 @@ import javax.swing.JLabel;
 import javax.swing.SwingWorker;
 import javax.swing.Timer;
 
-// class which is the Component showing the rendered image, and which also contains the view parameters and methods for interaction
+/* class FractalLabel:
+ * - extends JLabel to act as Component containing the rendered image
+ *     - contains as fields the BufferedImage and the array from which it is rendered
+ *         - contains methods to populate the array by calling FractalCalculator methods, and to render the array into a image
+ *             - contains objects to multithread these calculations
+ *             - contains an abort() method to halt these calculations
+ *         - contains fields describing the current fractal calculation and framing
+ *         - contains methods for transforming between image space (pixel indices) and fractal space (2D Cartesian coordinates)
+ *     - contains listeners to change the framing when the JLabel is interacted with
+ * - contains static fields and a function for converting floating-point fractal values into colours
+ */
 
 /* TODO:
+ * - abort of previous calculation should go before delay, not after
  * - add reuse of previous calculations where possible
+ * - try exploiting the set's connectedness to avoid calculating values that escape
  * - add option to use less threads
  * - figure out how to make shutdown() and awaitTermination() (in updateFractal()) work properly
  * - add antialiasing (MSAA, but possibly also over/undersampling)
@@ -36,36 +48,16 @@ import javax.swing.Timer;
  */
 
 public class FractalLabel extends JLabel {
+	// auto-generated Component ID
 	private static final long serialVersionUID = 6834230068761778027L;
 	
-	// efficiency seems to plateau between 1k and 10k Runnables (for 1MP of fractal mostly reaching maxiter = 1000)
-	static int N_RUNNABLES = 4000;
-
-	// fractal math parameters
-	int maxIter;
-	double escapeRad;
+	// miscellaneous static fields
+	static int UPDATE_DELAY = 100;	// time to wait after last GUI input before updating
+	static int N_RUNNABLES = 4000;	// efficiency seems to plateau between 1k and 10k Runnables (for 1MP of fractal mostly reaching maxiter = 1000)
 	
-	// view parameters
-	double centerX;
-	double centerY;
-	double width;
-	double rotation;
-
-	// fractal data and objects to show image
-	double[][] fractal;
-	BufferedImage image;
-	ImageIcon icon;
-	
-	// timer to call fractal update at a delay after last action
-	Timer updateTimer;
-	
-	// objects to handle multithreading
-	ThreadFactory fractalThreadFactory;
-	SwingWorker<Object, Object> updateWorker;
-	ExecutorService fractalThreadPool;
-	
-	// pretty colors
-	static int[][] defaultGradient = {
+	// static fields for default colour scheme
+	static double logScalingA = 12, logScalingB = 0.05;	// log-scaling parameters (n -> A*log(B*n + 1))
+	static int[][] defaultGradient = {					// cyclic colour gradient (RGB)
 		{4, 4, 73},
 		{0, 7, 100},
 		{12, 44, 138},
@@ -82,17 +74,39 @@ public class FractalLabel extends JLabel {
 		{66, 30, 15},
 	};
 	
-	// color log scaling parameters
-	static double logScalingA = 6.4, logScalingB = 0.05;
+
+	// fractal math parameters
+	int maxIter;		// maximum number of iterations to attempt
+	double escapeRad;	// radius from origin beyond which a point is considered to have escaped
 	
-	FractalLabel(){
+	// framing parameters in fractal space
+	double centerX;		// x or real coordinate of center of view
+	double centerY;		// y or imaginary coordinate of center of view
+	double width;		// width of view
+	double rotation;	// rotation angle (CCW camera rotation, or CW fractal rotation) (rad)
+
+	// fractal data and objects to show image
+	double[][] fractal;		// array to store floating-point fractal values calculated for a grid of points
+	BufferedImage image;	// image to display the fractal; same size as and calculated from fractal array
+	ImageIcon icon;			// icon for displaying the image
+	
+	
+	
+	// objects to handle multithreaded calculation
+	Timer updateTimer;							// Timer to call fractal update at a delay after last user input
+	ThreadFactory fractalThreadFactory;			// ThreadFactory to create threads for fractal calculation
+	SwingWorker<Object, Object> updateWorker;	// Worker to execute updates in a separate, stoppable process
+	ExecutorService fractalThreadPool;			// ThreadPool to handle parallel calculation of fractal values
+	
+	// constructor: initialize fractal/framing parameters, JLabel, calculation objects, and listeners
+	FractalLabel(){// TODO: clean up style
 		// set alignment and background so resizing looks nice
 		setHorizontalAlignment(CENTER);
 		setVerticalAlignment(CENTER);
 		setBackground(Color.BLACK);
 		setOpaque(true);
 		
-		// add components
+		// add Components
 		icon = new ImageIcon();
 		setIcon(icon);
 		
@@ -100,13 +114,13 @@ public class FractalLabel extends JLabel {
 		maxIter = 1000;
 		escapeRad = 420.69;
 		
-		// initialize view parameters
+		// initialize framing parameters
 		centerX = -0.69;
 		centerY = 0;
 		width = 5;
 		rotation = 0;
 		
-		// set up multithreading
+		// initialize objects to support calculation
 		fractalThreadFactory = new ThreadFactory(){
 			public Thread newThread(Runnable r){
 				Thread t = new Thread(r);
@@ -114,6 +128,22 @@ public class FractalLabel extends JLabel {
 				return t;
 			}
 		};
+		
+		updateTimer = new Timer(UPDATE_DELAY, new ActionListener() {
+			// after a delay, abort any previous update and start a new update
+			public void actionPerformed(ActionEvent e) {
+				abort();
+				updateWorker = new SwingWorker<Object, Object>(){
+			        protected Object doInBackground(){
+						updateFractal();
+						updateImage();
+						return null;
+			        }
+			    };
+				updateWorker.execute();	
+			}
+		});
+		updateTimer.setRepeats(false);
 
 		// add listeners
 		addComponentListener(new ComponentAdapter() {
@@ -125,7 +155,7 @@ public class FractalLabel extends JLabel {
 		});
 		
 		addMouseListener(new MouseAdapter() {
-			// on click, center clicked point and start update timer
+			// on click, center frame on clicked point and start update timer
 			public void mouseClicked(MouseEvent e) {
 				Point2D.Double newCenter = getFractalXY(e.getPoint());
 				centerX = newCenter.getX();
@@ -143,37 +173,18 @@ public class FractalLabel extends JLabel {
 				updateTimer.restart();
 			}
 		});
-		
-		updateTimer = new Timer(100, new ActionListener() {
-			// at a delay after the last call to update timer, abort previous update and update fractal
-			public void actionPerformed(ActionEvent e) {
-				abort();
-				// create new SwingWorker to run update, so it runs in the background and can be aborted if necessary
-				updateWorker = new SwingWorker<Object, Object>(){
-			        protected Object doInBackground(){
-						updateFractal();
-						updateImage();
-						return null;
-			        }
-			    };
-				updateWorker.execute();	
-			}
-		});
-		updateTimer.setRepeats(false);
 	}
 	
-	// recreate fractal array to match current window size and fractal and view parameters
+	// recreate fractal array to match current window size and fractal/framing parameters, then calculate its contents
 	void updateFractal() {
 		System.out.println("Updating fractal...");
 		long startTime = System.currentTimeMillis();
 		
-		// initialize ThreadPool
-		// efficiency seems to increase with nThreads until nThreads = [CPU nThreads], and slowly decrease above that
-		int nThreads = Runtime.getRuntime().availableProcessors();
+		// initialize fractalThreadPool
+		int nThreads = Runtime.getRuntime().availableProcessors(); // efficiency seems to increase with nThreads until nThreads = [CPU nThreads], and slowly decrease above that
 		fractalThreadPool = Executors.newFixedThreadPool(nThreads, fractalThreadFactory);
 		
-		// redeclare fractal
-		// this should go in the Listeners and so on that make the fractal array outdated, so they can appropriately set new size or reuse values
+		// redeclare fractal array
 		fractal = new double[getWidth()][getHeight()];
 		for(int i=0; i<fractal.length; i++) {
 			for(int j=0; j<fractal[0].length; j++) {
@@ -181,7 +192,7 @@ public class FractalLabel extends JLabel {
 			}
 		}
 		
-		// execute Runnable calculation
+		// make a list of indices in fractal array that require calculation
 		ArrayList<Point> allIndices = new ArrayList<Point>();
 		for(int i=0; i<fractal.length; i++) {
 			for(int j=0; j<fractal[0].length; j++) {
@@ -190,30 +201,34 @@ public class FractalLabel extends JLabel {
 				}
 			}
 		}
-		int pixelsPerRunnable = allIndices.size()/N_RUNNABLES;
-		int leftover = allIndices.size() - pixelsPerRunnable*N_RUNNABLES;
+		
+		// divide calculations evenly between Runnables
+		int pointsPerRunnable = allIndices.size()/N_RUNNABLES;	// all Runnables calculate this many points
+		int leftover = allIndices.size() %N_RUNNABLES;			// this many Runnables calculate one extra point
 		for(int p = 0; p < N_RUNNABLES; p++) {
-			int start = pixelsPerRunnable*p + Math.min(p, leftover);
-			int end = start + pixelsPerRunnable;
+			// figure out which indices to calculate in this Runnable
+			int start = pointsPerRunnable*p + Math.min(p, leftover);	// first index in allIndices for this Runnable
+			int end = start + pointsPerRunnable;						// last index
 			if(p < leftover) {
 				end += 1;
 			}
-			int[][] indices = new int[end - start][2];
-			Point2D.Double[] points = new Point2D.Double[end - start];
+			
+			// build and execute Runnable
+			int[][] indices = new int[end - start][2];					// this Runnable's sub-array of allIndices
+			Point2D.Double[] points = new Point2D.Double[end - start];	// this Runnable's points in fractal space
 			for(int i1d = start; i1d < end; i1d++) {
 				indices[i1d - start][0] = allIndices.get(i1d).x;
 				indices[i1d - start][1] = allIndices.get(i1d).y;
 				points[i1d - start] = getFractalXY(new Point(indices[i1d - start][0], indices[i1d - start][1]));
 			}
-			fractalThreadPool.execute(new FractalCalculator(fractal, indices, points, maxIter, escapeRad));
+			fractalThreadPool.execute(new FractalCalculator(fractal, points, indices, maxIter, escapeRad));
 		}
 		
-		// wait until all threads have completed, unless thread pool has been externally shut down
-		// I don't think this works how I think it works
+		// wait until calculation is finished
 		if(!fractalThreadPool.isShutdown()) {
-			fractalThreadPool.shutdown();
+			fractalThreadPool.shutdown();								// stop accepting new Runnables
 			try {
-				fractalThreadPool.awaitTermination(1, TimeUnit.DAYS);
+				fractalThreadPool.awaitTermination(1, TimeUnit.DAYS);	// wait for existing Runnables to finish running
 			} catch (InterruptedException e) { System.out.println("Interrupted ThreadPool shutdown in FractalLabel.updateFractal()"); }
 		}
 		
@@ -232,7 +247,7 @@ public class FractalLabel extends JLabel {
 			}
 		}
 		
-		// update GUI with new image
+		// display new image
 		icon.setImage(image);
 		updateUI();
 		
@@ -241,62 +256,66 @@ public class FractalLabel extends JLabel {
 	
 	// abort fractal calculation
 	void abort() {
-		if(updateWorker != null && !(updateWorker.isCancelled() || updateWorker.isDone())) {
+		// if updateWorker exists, cancel its execution
+		if(updateWorker != null) {
 			updateWorker.cancel(true);
 		}
+		
+		// if fractalThreadPool exists, cancel its execution
 		if(fractalThreadPool != null) {
-			fractalThreadPool.shutdownNow();
+			fractalThreadPool.shutdownNow();								// stop accepting new Runnables and halt existing ones
 			try {
-				fractalThreadPool.awaitTermination(1, TimeUnit.SECONDS);
+				fractalThreadPool.awaitTermination(1, TimeUnit.SECONDS);	// wait for existing Runnables to finish halting
 			} catch (InterruptedException e) { e.printStackTrace(); }
 		}
 	}
 	
-	// convert a point in image space to fractal space
+	// transform a point from image space to fractal space
 	Point2D.Double getFractalXY(Point imageXY){
-		double dx = (((double)imageXY.getX())/fractal.length - 0.5)*width;
-		double dy = -(((double)imageXY.getY()) - 0.5*fractal[0].length)*width/fractal.length;
+		double dx = (((double)imageXY.getX())/fractal.length - 0.5)*width;						// x-coordinate relative to center, ignoring rotation
+		double dy = -(((double)imageXY.getY()) - 0.5*fractal[0].length)*width/fractal.length;	// y-coordinate relative to center, ignoring rotation
 		return new Point2D.Double(
-				centerX + dx*Math.cos(rotation) - dy*Math.sin(rotation),
+				centerX + dx*Math.cos(rotation) - dy*Math.sin(rotation),						// multiply by rotation matrix and add center offset
 				centerY + dx*Math.sin(rotation) + dy*Math.cos(rotation)
 		);
 	}
 	
-	// convert a point from fractal space to image space
+	// transform a point from fractal space to image space
 	Point getImageXY(Point2D.Double fractalXY){
-		double dxt = fractalXY.getX() - centerX;
-		double dy = fractalXY.getY() - centerY;
-		double dx = dxt*Math.cos(rotation) + dy*Math.sin(rotation);
-		dy = -dxt*Math.sin(rotation) + dy*Math.cos(rotation);
+		double dxt = fractalXY.getX() - centerX;					// temporary x
+		double dy = fractalXY.getY() - centerY;						// subtract center offset
+		double dx = dxt*Math.cos(rotation) + dy*Math.sin(rotation);	// multiply by inverse of rotation matrix
+		dy = -dxt*Math.sin(rotation) + dy*Math.cos(rotation);		// can re-use double dy
 		return new Point(
 				(int)(fractal.length*(0.5 + dx/width) + 0.5),
 				(int)(0.5*fractal[0].length - dy*fractal.length/width + 0.5)
 		);
 	}
 	
-	// convert iteration number to color RGB code
-	int defaultColorRGB(double n) {
+	// convert fractal value to colour code
+	static int defaultColorRGB(double n) {
 		// return black if point didn't escape
 		if(n == FractalCalculator.REACHED_MAXITER || n == FractalCalculator.IN_SET) {
 			return Color.BLACK.getRGB();
 		}
 		
-		// log-scale n for better coloring when zooming in
-		n = logScalingA*Math.log(logScalingB*n + 1);// should probably change to A*log(B*(n + 1)) + C
+		// log-scale n for better contrast when zoomed in
+		n = logScalingA*Math.log(logScalingB*n + 1);
 		
-		// interpolate color based on scaled n
-		int l = defaultGradient.length;
+		// interpolate colour between gradient values
 		while(n < 0) {
-			n += l;
+			n += defaultGradient.length;			// bring n above zero to get positive modulo
 		}
-		int n1 = ((int)n)%l;
-		int n2 = ((int)n+1)%l;
-		double w = n%1;
+		int n1 = ((int)n) % defaultGradient.length;	// gradient index below n
+		int n2 = ((int)n + 1) % defaultGradient.length;	// gradient index above n
+		double w = n % 1;								// where n is between n1 and n2 (0 if n = n1, 1 if n = n2, linear between)
 		
-		int[] rgb = new int[3];
-		for(int i=0; i<3; i++)
-			rgb[i] = (int)((1-w)*defaultGradient[n1][i] + w*defaultGradient[n2][i]);
+		int[] rgb = new int[3];						// interpolated {red, green, blue}
+		for(int i=0; i<3; i++) {
+			rgb[i] = (int)((1 - w)*defaultGradient[n1][i] + w*defaultGradient[n2][i]);
+		}
 		
+		// create a Color object of the desired RGB values and return its RGB code
 		return new Color(rgb[0], rgb[1], rgb[2]).getRGB();
 	}
 }

@@ -7,9 +7,13 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.UIManager;
 
-// simple class to act as the top-level Component in the GUI
+/* class FractalGUI:
+ * - extends JFrame to act as the top-level Component in the GUI
+ *     - creates and adds sub-Components
+ * - contains static void main() for launching the GUI
+ */
 
-/*TODO:
+/* TODO:
  * - add a better control panel for pan/zoom/rotate/etc
  * 		- especially a progress bar
  * - add an icon
@@ -28,11 +32,11 @@ import javax.swing.UIManager;
  *         
  *     - D:\Callan\Backup dump\Documents\Programming\Java\workspace\MandelbrotGenerator\src (older and more complete version)
  *         - FractalGUI.java		: top-level Component; mostly re-implemented here, but also has a good control panel and menu bar
- *         - FractalLabel.java		: contains label/image; mostly re-implemented here, but also has APFloat and multithreading
- *         - ImageRow.java			: Runnable row of pixel calculations; also updates progress bar and checks if double precision is sufficient
+ *         - FractalLabel.java		: contains label/image; mostly re-implemented here, but also has arbitrary precision
+ *         - ImageRow.java			: Runnable row of pixel calculations; also updates progress bar and decides between double and arbitrary precision
  *         - PixelGenerator.java	: fractal and color calculation; everything Mandelbrot is re-implemented here, but has somewhat better color scaling
- *         - Complex.java			: complex-number class I wrote for Multibrot 
- *         - FourierTransform.java	: fourier transform of audio file for Newton fractal
+ *         - Complex.java			: complex-number class I wrote for Multibrot
+ *         - FourierTransform.java	: Fourier transform of audio file for Newton fractal
  *         - FractalRGB.java		: trivial class, forget what exactly it was for
  *         - FractalSTL.java		: generates an STL file from the contents of a FractalLabel, for 3D printing
  *         
@@ -41,14 +45,16 @@ import javax.swing.UIManager;
  */
 
 public class FractalGUI extends JFrame {
+	// auto-generated Component ID
 	private static final long serialVersionUID = -7891287854194431851L;
 	
-	// components
-	FractalLabel label;
-	JPanel controlPanel;
+	// Components
+	FractalLabel label;		// label evaluates and displays the fractal and image, and stores and modifies the view parameters
+	JPanel controlPanel;	// controlPanel should contain a progress bar and Components for modifying the view parameters (note: hide with setVisible())
 
+	// constructor: initialize JFrame and its Components
 	FractalGUI(){
-		// initialize JFrame
+		// initialize generic JFrame properties
 		super("fractal");
 		setSize(400, 400);
 		setLocation(80, 60);
@@ -57,13 +63,12 @@ public class FractalGUI extends JFrame {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (Exception e){ e.printStackTrace(); }
 		
-		// add components
+		// add Components
 		setLayout(new BorderLayout());
 		
 		label = new FractalLabel();
 		add(label, BorderLayout.CENTER);
 		
-		// controlPanel holds all of the Components for controlling the fractal; can be removed with setVisible()
 		controlPanel = new JPanel();
 		controlPanel.setLayout(new BorderLayout());
 		JTextField placeholderText = new JTextField("Placeholder");
@@ -73,12 +78,13 @@ public class FractalGUI extends JFrame {
 		
 		// initialize components (before showing frame)
 		addWindowListener(new WindowAdapter(){
+			// abort any calculations if the window is closed
 		    public void windowClosing(WindowEvent e) {
 		        label.abort();
 		    }
 		});
 		
-		// show frame
+		// show the GUI
 		setVisible(true);
 		
 		// initialize components (after showing frame)
