@@ -30,9 +30,10 @@ public class FractalCalculator implements Runnable {
 	Point2D.Double[] points;	// a list of points at which to calculate the fractal
 	double[][] fractal;			// reference to an array in which to save the results of calculation
 	int[][] indices;			// indices in fractal at which to save the result for each point
+	int[] progressCounter;	// tracks calculation progress
 
 	// constructor: assign values to fields and check that points and indices match
-	FractalCalculator(double[][] f, Point2D.Double[] p, int[][] i, int m, double e) {
+	FractalCalculator(double[][] f, Point2D.Double[] p, int[][] i, int m, double e, int[] c) {
 		// throw exception if the number of points doesn't match the number of indices
 		if(i.length != p.length) {
 			throw new IllegalArgumentException("Illegal arguments passed to FractalCalculator constructor: i.length != p.length");
@@ -48,6 +49,7 @@ public class FractalCalculator implements Runnable {
 		points = p;
 		maxIter = m;
 		escape = e;
+		progressCounter = c;
 	}
 	
 	// for each point, evaluate the fractal and save the result
@@ -55,6 +57,7 @@ public class FractalCalculator implements Runnable {
 		for(int i=0; i<points.length; i++) {
 			fractal[indices[i][0]][indices[i][1]] = MandelbrotPoint(points[i], maxIter, escape);
 		}
+		progressCounter[0] += points.length;
 	}
 
 	// evaluate the Mandelbrot fractal at a point

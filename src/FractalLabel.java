@@ -40,6 +40,7 @@ import javax.swing.Timer;
  * - add option to use less threads
  * - figure out how to make shutdown() and awaitTermination() (in updateFractal()) work properly
  * - add antialiasing (MSAA, but possibly also over/undersampling)
+ *     - try adaptive antialiasing, where sampling goes until 
  * - make coloring independent of gradient length (easy)
  * - figure out how to do coloring properly by examining how iteration counts change from one repeated pattern to the next
  * - add customizable and encapsulated coloring
@@ -54,6 +55,7 @@ public class FractalLabel extends JLabel {
 	// miscellaneous static fields
 	static int UPDATE_DELAY = 100;	// time to wait after last GUI input before updating
 	static int N_RUNNABLES = 4000;	// efficiency seems to plateau between 1k and 10k Runnables (for 1MP of fractal mostly reaching maxiter = 1000)
+	static int PROGRESS_DELAY = 50;	// time between progress updates
 	
 	// static fields for default colour scheme
 	static double logScalingA = 12, logScalingB = 0.05;	// log-scaling parameters (n -> A*log(B*n + 1))
@@ -90,7 +92,10 @@ public class FractalLabel extends JLabel {
 	BufferedImage image;	// image to display the fractal; same size as and calculated from fractal array
 	ImageIcon icon;			// icon for displaying the image
 	
-	
+	// to track calculation progress
+	int nPoints;			// total number of points to calculate 
+	int[] progressCounter;	// number of points calculated (in array for call-by-reference)
+	Timer progressTimer;	// timer to report calculation progress
 	
 	// objects to handle multithreaded calculation
 	Timer updateTimer;							// Timer to call fractal update at a delay after last user input
@@ -120,6 +125,7 @@ public class FractalLabel extends JLabel {
 		width = 5;
 		rotation = 0;
 		
+		
 		// initialize objects to support calculation
 		fractalThreadFactory = new ThreadFactory(){
 			public Thread newThread(Runnable r){
@@ -144,6 +150,15 @@ public class FractalLabel extends JLabel {
 			}
 		});
 		updateTimer.setRepeats(false);
+		
+		// initialize progress reporting
+		progressCounter = new int[1];
+		
+		progressTimer = new Timer(PROGRESS_DELAY, new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				reportProgress();
+			}
+		});
 
 		// add listeners
 		addComponentListener(new ComponentAdapter() {
@@ -179,6 +194,7 @@ public class FractalLabel extends JLabel {
 	void updateFractal() {
 		System.out.println("Updating fractal...");
 		long startTime = System.currentTimeMillis();
+		progressCounter[0] = 0;
 		
 		// initialize fractalThreadPool
 		int nThreads = Runtime.getRuntime().availableProcessors(); // efficiency seems to increase with nThreads until nThreads = [CPU nThreads], and slowly decrease above that
@@ -202,6 +218,12 @@ public class FractalLabel extends JLabel {
 			}
 		}
 		
+		nPoints = allIndices.size();
+		
+		// start reporting progress
+		reportProgress();
+		progressTimer.start();
+		
 		// divide calculations evenly between Runnables
 		int pointsPerRunnable = allIndices.size()/N_RUNNABLES;	// all Runnables calculate this many points
 		int leftover = allIndices.size() %N_RUNNABLES;			// this many Runnables calculate one extra point
@@ -221,7 +243,7 @@ public class FractalLabel extends JLabel {
 				indices[i1d - start][1] = allIndices.get(i1d).y;
 				points[i1d - start] = getFractalXY(new Point(indices[i1d - start][0], indices[i1d - start][1]));
 			}
-			fractalThreadPool.execute(new FractalCalculator(fractal, points, indices, maxIter, escapeRad));
+			fractalThreadPool.execute(new FractalCalculator(fractal, points, indices, maxIter, escapeRad, progressCounter));
 		}
 		
 		// wait until calculation is finished
@@ -232,6 +254,9 @@ public class FractalLabel extends JLabel {
 			} catch (InterruptedException e) { System.out.println("Interrupted ThreadPool shutdown in FractalLabel.updateFractal()"); }
 		}
 		
+		progressTimer.stop();
+		progressCounter[0] = allIndices.size();
+		reportProgress();
 		System.out.println(String.format("Done updating fractal (%s threads, %s processes, %.2f seconds)", nThreads, N_RUNNABLES, 0.001*(System.currentTimeMillis() - startTime)));
 	}
 
@@ -268,6 +293,8 @@ public class FractalLabel extends JLabel {
 				fractalThreadPool.awaitTermination(1, TimeUnit.SECONDS);	// wait for existing Runnables to finish halting
 			} catch (InterruptedException e) { e.printStackTrace(); }
 		}
+		
+		progressTimer.stop();
 	}
 	
 	// transform a point from image space to fractal space
@@ -317,5 +344,13 @@ public class FractalLabel extends JLabel {
 		
 		// create a Color object of the desired RGB values and return its RGB code
 		return new Color(rgb[0], rgb[1], rgb[2]).getRGB();
+	}
+	
+	double getProgressFraction() {
+		return (double)progressCounter[0]/nPoints;
+	}
+	
+	void reportProgress() {
+		System.out.println(String.format("%.1f%%", 100*getProgressFraction()));
 	}
 }
