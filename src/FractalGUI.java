@@ -1,22 +1,24 @@
 import java.awt.BorderLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.File;
+import java.io.IOException;
 
+import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 
 /* class FractalGUI:
  * - extends JFrame to act as the top-level Component in the GUI
  *     - creates and adds sub-Components
- * - contains static void main() for launching the GUI
+ * - contains main() for launching the GUI
  */
 
 /* TODO:
  * - add a better control panel for pan/zoom/rotate/etc
- * 		- especially a progress bar
- * - add an icon
  * - add keyboard control (requires learning the focus subsystem)
  * - add image saving
  *     - try to add fractal information in image metadata (use ImageReader/ImageWriter)
@@ -45,8 +47,7 @@ import javax.swing.UIManager;
  */
 
 public class FractalGUI extends JFrame {
-	// auto-generated Component ID
-	private static final long serialVersionUID = -7891287854194431851L;
+	private static final long serialVersionUID = -7891287854194431851L; // auto-generated Component ID
 	
 	// Components
 	FractalLabel label;			// label evaluates and displays the fractal and image, and stores and modifies the view parameters
@@ -54,16 +55,19 @@ public class FractalGUI extends JFrame {
 	JPanel controlPanel;		// controlPanel should contain a progress bar and Components for modifying the view parameters (note: hide with setVisible())
 	JProgressBar progressBar;	// to track calculation progress
 
-	// constructor: initialize JFrame and its Components
+	// constructor: initialize the JFrame and its Components
 	FractalGUI(){
 		// initialize generic JFrame properties
-		super("fractal");
+		super("Fractal");
 		setSize(520, 360);
 		setLocation(80, 60);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		try {
+			setIconImage(ImageIO.read(new File("images/icon.png")));
+		} catch (IOException e) { e.printStackTrace(); }
+		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		} catch (Exception e){ e.printStackTrace(); }
+		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException e) { e.printStackTrace(); }
 		
 		// add Components
 		setLayout(new BorderLayout());

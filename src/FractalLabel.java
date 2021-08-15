@@ -38,7 +38,6 @@ import javax.swing.Timer;
  * - add reuse of previous calculations where possible
  * - try exploiting the set's connectedness to avoid calculating values that escape
  * - add option to use less threads
- * - figure out how to make shutdown() and awaitTermination() (in updateFractal()) work properly
  * - add antialiasing (MSAA, but possibly also over/undersampling)
  *     - try adaptive antialiasing, where sampling goes until a certain precision is reached
  * - make coloring independent of gradient length (easy)
