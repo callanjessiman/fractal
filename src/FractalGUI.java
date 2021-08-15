@@ -27,6 +27,7 @@ import javax.swing.event.ChangeListener;
 /* TODO:
  * - add a better control panel for pan/zoom/rotate/etc
  *     - improve layout
+ *     - link iteration spinner to actual starting value in label
  * - add keyboard control (requires learning the focus subsystem)
  * - add image saving
  *     - try to add fractal information in image metadata (use ImageReader/ImageWriter)
@@ -88,7 +89,7 @@ public class FractalGUI extends JFrame {
 		controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
 		controlPanel.add(Box.createVerticalGlue());
 
-		iterationSpinner = new JSpinner(new SpinnerNumberModel(4000, 1000, 100000, 1000));
+		iterationSpinner = new JSpinner(new SpinnerNumberModel(1000, 1000, 100000, 1000));
 		iterationSpinner.setPreferredSize(new Dimension(80, 20));
 		iterationSpinner.setMaximumSize(new Dimension(80, 20));
 		iterationSpinner.addChangeListener(new ChangeListener(){

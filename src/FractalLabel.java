@@ -34,7 +34,6 @@ import javax.swing.Timer;
  */
 
 /* TODO:
- * - abort of previous calculation should go before delay, not after
  * - add reuse of previous calculations where possible
  * - try exploiting the set's connectedness to avoid calculating values that escape
  * - add option to use less threads
@@ -115,7 +114,7 @@ public class FractalLabel extends JLabel {
 		gui = g;
 		
 		// initialize fractal parameters
-		maxIter = 10000;
+		maxIter = 1000;
 		escapeRad = 420.69;
 		
 		// initialize framing parameters
@@ -136,7 +135,6 @@ public class FractalLabel extends JLabel {
 		updateTimer = new Timer(UPDATE_DELAY, new ActionListener() {
 			// after a delay, abort any previous update and start a new update
 			public void actionPerformed(ActionEvent e) {
-				abort();
 				updateWorker = new SwingWorker<Object, Object>(){
 			        protected Object doInBackground(){
 						updateFractal();
@@ -163,6 +161,7 @@ public class FractalLabel extends JLabel {
 			// on window resize, start update timer
 			public void componentResized(ComponentEvent e) {
 				System.out.println(String.format("FractalLabel resized (%s, %s)", getWidth(), getHeight()));
+				abort();
 				updateTimer.restart();
 			}
 		});
@@ -174,6 +173,7 @@ public class FractalLabel extends JLabel {
 				centerX = newCenter.getX();
 				centerY = newCenter.getY();
 				System.out.println(String.format("FractalLabel center changed (%s, %s)", centerX, centerY));
+				abort();
 				updateTimer.restart();
 			}
 		});
@@ -183,6 +183,7 @@ public class FractalLabel extends JLabel {
 			public void mouseWheelMoved(MouseWheelEvent e) {
 				width *= Math.pow(2, e.getWheelRotation());
 				System.out.println(String.format("FractalLabel width changed (%s)", width));
+				abort();
 				updateTimer.restart();
 			}
 		});
