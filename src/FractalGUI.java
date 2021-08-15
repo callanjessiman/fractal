@@ -1,15 +1,22 @@
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 
 import javax.imageio.ImageIO;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 /* class FractalGUI:
  * - extends JFrame to act as the top-level Component in the GUI
@@ -19,6 +26,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 
 /* TODO:
  * - add a better control panel for pan/zoom/rotate/etc
+ *     - improve layout
  * - add keyboard control (requires learning the focus subsystem)
  * - add image saving
  *     - try to add fractal information in image metadata (use ImageReader/ImageWriter)
@@ -53,6 +61,7 @@ public class FractalGUI extends JFrame {
 	FractalLabel label;			// label evaluates and displays the fractal and image, and stores and modifies the view parameters
 	
 	JPanel controlPanel;		// controlPanel should contain a progress bar and Components for modifying the view parameters (note: hide with setVisible())
+	JSpinner iterationSpinner;	// increase/decrease max iterations
 	JProgressBar progressBar;	// to track calculation progress
 
 	// constructor: initialize the JFrame and its Components
@@ -76,9 +85,28 @@ public class FractalGUI extends JFrame {
 		add(label, BorderLayout.CENTER);
 		
 		controlPanel = new JPanel();
+		controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
+		controlPanel.add(Box.createVerticalGlue());
+
+		iterationSpinner = new JSpinner(new SpinnerNumberModel(4000, 1000, 100000, 1000));
+		iterationSpinner.setPreferredSize(new Dimension(80, 20));
+		iterationSpinner.setMaximumSize(new Dimension(80, 20));
+		iterationSpinner.addChangeListener(new ChangeListener(){
+			public void stateChanged(ChangeEvent arg0){
+				label.maxIter = (int)iterationSpinner.getValue();
+				label.updateTimer.restart();
+			}			
+		});
+		controlPanel.add(iterationSpinner);
+		
 		progressBar = new JProgressBar(0, 100);
+		progressBar.setPreferredSize(new Dimension(80, 20));
+		progressBar.setMaximumSize(new Dimension(80, 20));
 		progressBar.setStringPainted(true);
 		controlPanel.add(progressBar);
+		
+		controlPanel.add(Box.createVerticalGlue());
+		
 		add(controlPanel, BorderLayout.EAST);
 		
 		// initialize components (before showing frame)

@@ -73,7 +73,7 @@ public class FractalLabel extends JLabel {
 		{153, 87, 0},
 		{106, 52, 3},
 		{66, 30, 15},
-	};	
+	};
 
 	// fractal math parameters
 	int maxIter;		// maximum number of iterations to attempt
