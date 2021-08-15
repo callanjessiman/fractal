@@ -4,7 +4,7 @@ import java.awt.event.WindowEvent;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import javax.swing.JTextField;
+import javax.swing.JProgressBar;
 import javax.swing.UIManager;
 
 /* class FractalGUI:
@@ -49,14 +49,16 @@ public class FractalGUI extends JFrame {
 	private static final long serialVersionUID = -7891287854194431851L;
 	
 	// Components
-	FractalLabel label;		// label evaluates and displays the fractal and image, and stores and modifies the view parameters
-	JPanel controlPanel;	// controlPanel should contain a progress bar and Components for modifying the view parameters (note: hide with setVisible())
+	FractalLabel label;			// label evaluates and displays the fractal and image, and stores and modifies the view parameters
+	
+	JPanel controlPanel;		// controlPanel should contain a progress bar and Components for modifying the view parameters (note: hide with setVisible())
+	JProgressBar progressBar;	// to track calculation progress
 
 	// constructor: initialize JFrame and its Components
 	FractalGUI(){
 		// initialize generic JFrame properties
 		super("fractal");
-		setSize(400, 400);
+		setSize(520, 360);
 		setLocation(80, 60);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		try {
@@ -66,14 +68,13 @@ public class FractalGUI extends JFrame {
 		// add Components
 		setLayout(new BorderLayout());
 		
-		label = new FractalLabel();
+		label = new FractalLabel(this);
 		add(label, BorderLayout.CENTER);
 		
 		controlPanel = new JPanel();
-		controlPanel.setLayout(new BorderLayout());
-		JTextField placeholderText = new JTextField("Placeholder");
-		placeholderText.setEditable(false);
-		controlPanel.add(placeholderText, BorderLayout.CENTER);
+		progressBar = new JProgressBar(0, 100);
+		progressBar.setStringPainted(true);
+		controlPanel.add(progressBar);
 		add(controlPanel, BorderLayout.EAST);
 		
 		// initialize components (before showing frame)

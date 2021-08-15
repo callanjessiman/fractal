@@ -40,7 +40,7 @@ import javax.swing.Timer;
  * - add option to use less threads
  * - figure out how to make shutdown() and awaitTermination() (in updateFractal()) work properly
  * - add antialiasing (MSAA, but possibly also over/undersampling)
- *     - try adaptive antialiasing, where sampling goes until 
+ *     - try adaptive antialiasing, where sampling goes until a certain precision is reached
  * - make coloring independent of gradient length (easy)
  * - figure out how to do coloring properly by examining how iteration counts change from one repeated pattern to the next
  * - add customizable and encapsulated coloring
@@ -53,9 +53,9 @@ public class FractalLabel extends JLabel {
 	private static final long serialVersionUID = 6834230068761778027L;
 	
 	// miscellaneous static fields
-	static int UPDATE_DELAY = 100;	// time to wait after last GUI input before updating
-	static int N_RUNNABLES = 4000;	// efficiency seems to plateau between 1k and 10k Runnables (for 1MP of fractal mostly reaching maxiter = 1000)
-	static int PROGRESS_DELAY = 50;	// time between progress updates
+	static int UPDATE_DELAY = 100;		// time to wait after last GUI input before updating
+	static int N_RUNNABLES = 4000;		// efficiency seems to plateau between 1k and 10k Runnables (for 1MP of fractal mostly reaching maxiter = 1000)
+	static int PROGRESS_DELAY = 100;	// time between progress updates
 	
 	// static fields for default colour scheme
 	static double logScalingA = 12, logScalingB = 0.05;	// log-scaling parameters (n -> A*log(B*n + 1))
@@ -74,8 +74,7 @@ public class FractalLabel extends JLabel {
 		{153, 87, 0},
 		{106, 52, 3},
 		{66, 30, 15},
-	};
-	
+	};	
 
 	// fractal math parameters
 	int maxIter;		// maximum number of iterations to attempt
@@ -93,9 +92,9 @@ public class FractalLabel extends JLabel {
 	ImageIcon icon;			// icon for displaying the image
 	
 	// to track calculation progress
-	int nPoints;			// total number of points to calculate 
 	int[] progressCounter;	// number of points calculated (in array for call-by-reference)
 	Timer progressTimer;	// timer to report calculation progress
+	FractalGUI gui;			// reference back to GUI (for progress bar)
 	
 	// objects to handle multithreaded calculation
 	Timer updateTimer;							// Timer to call fractal update at a delay after last user input
@@ -104,7 +103,7 @@ public class FractalLabel extends JLabel {
 	ExecutorService fractalThreadPool;			// ThreadPool to handle parallel calculation of fractal values
 	
 	// constructor: initialize fractal/framing parameters, JLabel, calculation objects, and listeners
-	FractalLabel(){// TODO: clean up style
+	FractalLabel(FractalGUI g){// TODO: clean up style
 		// set alignment and background so resizing looks nice
 		setHorizontalAlignment(CENTER);
 		setVerticalAlignment(CENTER);
@@ -114,17 +113,17 @@ public class FractalLabel extends JLabel {
 		// add Components
 		icon = new ImageIcon();
 		setIcon(icon);
+		gui = g;
 		
 		// initialize fractal parameters
-		maxIter = 1000;
+		maxIter = 10000;
 		escapeRad = 420.69;
 		
 		// initialize framing parameters
 		centerX = -0.69;
 		centerY = 0;
 		width = 5;
-		rotation = 0;
-		
+		rotation = 0;		
 		
 		// initialize objects to support calculation
 		fractalThreadFactory = new ThreadFactory(){
@@ -218,7 +217,7 @@ public class FractalLabel extends JLabel {
 			}
 		}
 		
-		nPoints = allIndices.size();
+		gui.progressBar.setMaximum(allIndices.size());
 		
 		// start reporting progress
 		reportProgress();
@@ -346,11 +345,7 @@ public class FractalLabel extends JLabel {
 		return new Color(rgb[0], rgb[1], rgb[2]).getRGB();
 	}
 	
-	double getProgressFraction() {
-		return (double)progressCounter[0]/nPoints;
-	}
-	
 	void reportProgress() {
-		System.out.println(String.format("%.1f%%", 100*getProgressFraction()));
+		gui.progressBar.setValue(progressCounter[0]);
 	}
 }
