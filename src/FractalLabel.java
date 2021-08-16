@@ -114,14 +114,14 @@ public class FractalLabel extends JLabel {
 		gui = g;
 		
 		// initialize fractal parameters
-		maxIter = 1000;
+		maxIter = 256;
 		escapeRad = 420.69;
 		
 		// initialize framing parameters
 		centerX = -0.69;
 		centerY = 0;
 		width = 5;
-		rotation = 0;		
+		rotation = 0;
 		
 		// initialize objects to support calculation
 		fractalThreadFactory = new ThreadFactory(){
@@ -142,7 +142,7 @@ public class FractalLabel extends JLabel {
 						return null;
 			        }
 			    };
-				updateWorker.execute();	
+				updateWorker.execute();
 			}
 		});
 		updateTimer.setRepeats(false);
@@ -261,10 +261,10 @@ public class FractalLabel extends JLabel {
 
 	// recreate fractal image to match fractal array
 	void updateImage() {
-		System.out.println("Updating image... ");	
+		System.out.println("Updating image... ");
 		
 		// create new image and render the contents of the fractal array to it
-		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);				
+		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);
 		for(int i = 0; i < fractal.length; i++) {
 			for(int j = 0; j < fractal[0].length; j++) {
 				image.setRGB(i, j, defaultColorRGB(fractal[i][j]));

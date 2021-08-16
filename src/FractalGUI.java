@@ -88,13 +88,16 @@ public class FractalGUI extends JFrame {
 		controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
 		controlPanel.add(Box.createVerticalGlue());
 
-		iterationSpinner = new JSpinner(new SpinnerBinaryIntModel());
+		iterationSpinner = new JSpinner(new SpinnerBinaryIntModel(label.maxIter));
 		iterationSpinner.setPreferredSize(new Dimension(80, 20));
 		iterationSpinner.setMaximumSize(new Dimension(80, 20));
 		iterationSpinner.addChangeListener(new ChangeListener(){
 			public void stateChanged(ChangeEvent arg0){
-				label.maxIter = (int)iterationSpinner.getValue();
-				label.updateTimer.restart();
+				int newValue = (int)iterationSpinner.getValue();
+				if(label.maxIter != newValue) {
+					label.maxIter = newValue;
+					label.updateTimer.restart();
+				}
 			}
 		});
 		controlPanel.add(iterationSpinner);
