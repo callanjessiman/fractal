@@ -30,7 +30,7 @@ import javax.swing.Timer;
  *         - contains fields describing the current fractal calculation and framing
  *         - contains methods for transforming between image space (pixel indices) and fractal space (2D Cartesian coordinates)
  *     - contains listeners to change the framing when the JLabel is interacted with
- * - contains static fields and a function for converting floating-point fractal values into colours
+ * - contains static fields/methods for converting floating-point fractal values into colours
  */
 
 /* TODO:

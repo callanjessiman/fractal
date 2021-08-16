@@ -23,8 +23,8 @@ public class FractalCalculator implements Runnable {
 	static double IN_SET = -3;			// special return value for points analytically known to never escape
 	
 	// general calculation parameters
-	int maxIter;	// maximum number of fractal iterations to calculate before giving up
-	double escape;	// radius at which a point is considered to have "escaped" from the set
+	int maxIter;			// maximum number of fractal iterations to calculate before giving up
+	double escapeRadius;	// radius at which a point is considered to have "escaped" from the set
 	
 	// calculation input/output
 	Point2D.Double[] points;	// a list of points at which to calculate the fractal
@@ -33,35 +33,35 @@ public class FractalCalculator implements Runnable {
 	int[] progressCounter;	// tracks calculation progress
 
 	// constructor: assign values to fields and check that points and indices match
-	FractalCalculator(double[][] f, Point2D.Double[] p, int[][] i, int m, double e, int[] c) {
+	FractalCalculator(double[][] fractalArray, Point2D.Double[] fractalPoints, int[][] arrayIndices, int maxIter, double escapeRadius, int[] progressCounter) {
 		// throw exception if the number of points doesn't match the number of indices
-		if(i.length != p.length) {
+		if(arrayIndices.length != fractalPoints.length) {
 			throw new IllegalArgumentException("Illegal arguments passed to FractalCalculator constructor: i.length != p.length");
 		}
 		
 		// throw exception if the entries in indices aren't 2D
-		if(i[0].length != 2) {
+		if(arrayIndices[0].length != 2) {
 			throw new IllegalArgumentException("Illegal arguments passed to FractalCalculator constructor: i[0].length != 2");
 		}
 		
-		fractal = f;
-		indices = i;
-		points = p;
-		maxIter = m;
-		escape = e;
-		progressCounter = c;
+		fractal = fractalArray;
+		indices = arrayIndices;
+		points = fractalPoints;
+		this.maxIter = maxIter;
+		this.escapeRadius = escapeRadius;
+		this.progressCounter = progressCounter;
 	}
 	
 	// for each point, evaluate the fractal and save the result
 	public void run() {
 		for(int i=0; i<points.length; i++) {
-			fractal[indices[i][0]][indices[i][1]] = MandelbrotPoint(points[i], maxIter, escape);
+			fractal[indices[i][0]][indices[i][1]] = MandelbrotPoint(points[i], maxIter, escapeRadius);
 		}
 		progressCounter[0] += points.length;
 	}
 
 	// evaluate the Mandelbrot fractal at a point
-	static double MandelbrotPoint(Point2D.Double z0, int maxIter, double escapeRad) {
+	static double MandelbrotPoint(Point2D.Double z0, int maxIter, double escapeRadius) {
 		double r0 = z0.getX();
 		double i0 = z0.getY();
 		
@@ -82,7 +82,7 @@ public class FractalCalculator implements Runnable {
 			n++;
 			
 			// if z_n has escaped, return number of iterations
-			if(r*r + i*i >= escapeRad) {
+			if(r*r + i*i >= escapeRadius) {
 				// to interpolate between integer iteration numbers, consider how far z escaped
 				// should probably look into exactly how this smoothing works; it doesn't seem to conserve integer iteration numbers
 				return n + 1 - Math.log(0.5*Math.log(r*r + i*i)/Math.log(2))/Math.log(2);

@@ -20,13 +20,17 @@ import javax.swing.event.ChangeListener;
 /* class FractalGUI:
  * - extends JFrame to act as the top-level Component in the GUI
  *     - creates and adds sub-Components
+ *         - contains a JLabel to handle image, calculation, and mouse events
+ *         - contains a panel with control Components and a progress bar
  * - contains main() for launching the GUI
  */
 
 /* TODO:
- * - add a better control panel for pan/zoom/rotate/etc
+ * - add a better control panel for pan/zoom/rotate/iterations/etc
  *     - improve layout
- *     - link iteration spinner to actual starting value in label
+ *     - add labels for spinners
+ * - add a menu bar
+ * - add options to hide menu bar and control panel and/or go full-screen
  * - add keyboard control (requires learning the focus subsystem)
  * - add image saving
  *     - try to add fractal information in image metadata (use ImageReader/ImageWriter)
@@ -92,6 +96,7 @@ public class FractalGUI extends JFrame {
 		iterationSpinner.setPreferredSize(new Dimension(80, 20));
 		iterationSpinner.setMaximumSize(new Dimension(80, 20));
 		iterationSpinner.addChangeListener(new ChangeListener(){
+			// update the fractal when the spinner is changed
 			public void stateChanged(ChangeEvent arg0){
 				int newValue = (int)iterationSpinner.getValue();
 				if(label.maxIter != newValue) {
