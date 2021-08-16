@@ -4,6 +4,10 @@ import javax.swing.AbstractSpinnerModel;
  * - provides a SpinnerModel that includes all integer powers of two (0, 1, 2, 4, 8, ...)
  */
 
+/* TODO:
+ * - the spinner is non-editable for some reason
+ */
+
 public class SpinnerBinaryIntModel extends AbstractSpinnerModel {
 	private static final long serialVersionUID = 5017737605225758694L;
 	

@@ -66,6 +66,7 @@ public class FractalGUI extends JFrame {
 	
 	JPanel controlPanel;		// controlPanel should contain a progress bar and Components for modifying the view parameters (note: hide with setVisible())
 	JSpinner iterationSpinner;	// increase/decrease max iterations
+	JSpinner rotationSpinner;	// rotate view
 	JProgressBar progressBar;	// to track calculation progress
 
 	// constructor: initialize the JFrame and its Components
@@ -106,6 +107,21 @@ public class FractalGUI extends JFrame {
 			}
 		});
 		controlPanel.add(iterationSpinner);
+
+		rotationSpinner = new JSpinner(new SpinnerCyclicNumberModel(Math.toDegrees(label.rotation), 0, 360, 15));
+		rotationSpinner.setPreferredSize(new Dimension(80, 20));
+		rotationSpinner.setMaximumSize(new Dimension(80, 20));
+		rotationSpinner.addChangeListener(new ChangeListener(){
+			// update the fractal when the spinner is changed
+			public void stateChanged(ChangeEvent arg0){
+				double newValue = Math.toRadians((double)rotationSpinner.getValue());
+				if(label.rotation != newValue) {
+					label.rotation = newValue;
+					label.updateTimer.restart();
+				}
+			}
+		});
+		controlPanel.add(rotationSpinner);
 		
 		progressBar = new JProgressBar(0, 100);
 		progressBar.setPreferredSize(new Dimension(80, 20));
