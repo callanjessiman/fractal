@@ -5,7 +5,7 @@ import javax.swing.AbstractSpinnerModel;
  */
 
 /* TODO:
- * - the spinner is non-editable for some reason
+ * - the spinner text field is non-editable for some reason
  */
 
 public class SpinnerBinaryIntModel extends AbstractSpinnerModel {
