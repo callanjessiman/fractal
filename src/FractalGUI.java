@@ -12,7 +12,6 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JSpinner;
-import javax.swing.SpinnerNumberModel;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.event.ChangeEvent;
@@ -89,14 +88,14 @@ public class FractalGUI extends JFrame {
 		controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
 		controlPanel.add(Box.createVerticalGlue());
 
-		iterationSpinner = new JSpinner(new SpinnerNumberModel(1000, 1000, 100000, 1000));
+		iterationSpinner = new JSpinner(new SpinnerBinaryIntModel());
 		iterationSpinner.setPreferredSize(new Dimension(80, 20));
 		iterationSpinner.setMaximumSize(new Dimension(80, 20));
 		iterationSpinner.addChangeListener(new ChangeListener(){
 			public void stateChanged(ChangeEvent arg0){
 				label.maxIter = (int)iterationSpinner.getValue();
 				label.updateTimer.restart();
-			}			
+			}
 		});
 		controlPanel.add(iterationSpinner);
 		
