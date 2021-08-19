@@ -39,7 +39,6 @@ import javax.swing.Timer;
  * - add option to use less threads
  * - add antialiasing (MSAA, but possibly also over/undersampling)
  *     - try adaptive antialiasing, where sampling goes until a certain precision is reached
- * - make coloring independent of gradient length (easy)
  * - figure out how to do coloring properly by examining how iteration counts change from one repeated pattern to the next
  * - add customizable and encapsulated coloring
  *     - add color map customization
@@ -56,7 +55,7 @@ public class FractalLabel extends JLabel {
 	static int PROGRESS_DELAY = 100;	// time between progress updates
 	
 	// static fields for default colour scheme
-	static double logScalingA = 12, logScalingB = 0.05, logScalingC = 19;	// log-scaling parameters (n -> A*log(B*(n + C)))
+	static double logScalingA = 168, logScalingB = 0.05, logScalingC = 19;	// log-scaling parameters (n -> A*log(B*(n + C)))
 	static int[][] defaultGradient = {										// cyclic colour gradient (RGB)
 		{4, 4, 73},
 		{0, 7, 100},
@@ -118,7 +117,7 @@ public class FractalLabel extends JLabel {
 		escapeRad = 420.69;
 		
 		// initialize framing parameters
-		centerX = -0.69;
+		centerX = -0.69420;
 		centerY = 0;
 		width = 5;
 		rotation = 0;
@@ -267,7 +266,7 @@ public class FractalLabel extends JLabel {
 		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);
 		for(int i = 0; i < fractal.length; i++) {
 			for(int j = 0; j < fractal[0].length; j++) {
-				image.setRGB(i, j, defaultColorRGB(fractal[i][j]));
+				image.setRGB(i, j, getIterationRGB(fractal[i][j], defaultGradient));
 			}
 		}
 		
@@ -319,32 +318,33 @@ public class FractalLabel extends JLabel {
 	}
 	
 	// convert fractal value to colour code
-	static int defaultColorRGB(double n) {
+	static int getIterationRGB(double iterations, int[][] gradientRGB) {
 		// return black if point didn't escape
-		if(n == FractalCalculator.REACHED_MAXITER || n == FractalCalculator.IN_SET) {
+		if(iterations == FractalCalculator.REACHED_MAXITER || iterations == FractalCalculator.IN_SET) {
 			return Color.BLACK.getRGB();
 		}
 		
-		// log-scale n for better contrast when zoomed in
-		n = logScalingA*Math.log(logScalingB*(n + logScalingC));
+		// log-scale n for better contrast when zoomed in, and normalize to gradient length
+		iterations = logScalingA*Math.log(logScalingB*(iterations + logScalingC))/gradientRGB.length;
 		
 		// interpolate colour between gradient values
-		while(n < 0) {
-			n += defaultGradient.length;			// bring n above zero to get positive modulo
+		while(iterations < 0) {
+			iterations += gradientRGB.length;			// bring n above zero to get positive modulo
 		}
-		int n1 = ((int)n) % defaultGradient.length;	// gradient index below n
-		int n2 = ((int)n + 1) % defaultGradient.length;	// gradient index above n
-		double w = n % 1;								// where n is between n1 and n2 (0 if n = n1, 1 if n = n2, linear between)
+		int n1 = ((int)iterations) % gradientRGB.length;	// gradient index below n
+		int n2 = ((int)iterations + 1) % gradientRGB.length;	// gradient index above n
+		double w = iterations % 1;								// where n is between n1 and n2 (0 if n = n1, 1 if n = n2, linear between)
 		
 		int[] rgb = new int[3];						// interpolated {red, green, blue}
 		for(int i=0; i<3; i++) {
-			rgb[i] = (int)((1 - w)*defaultGradient[n1][i] + w*defaultGradient[n2][i]);
+			rgb[i] = (int)((1 - w)*gradientRGB[n1][i] + w*gradientRGB[n2][i]);
 		}
 		
 		// create a Color object of the desired RGB values and return its RGB code
 		return new Color(rgb[0], rgb[1], rgb[2]).getRGB();
 	}
 	
+	// update GUI to reflect calculation progress
 	void reportProgress() {
 		gui.progressBar.setValue(progressCounter[0]);
 	}
