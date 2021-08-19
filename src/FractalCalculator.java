@@ -10,7 +10,6 @@ import java.awt.geom.Point2D;
  */
 
 /* TODO:
- * - figure out how Mandelbrot smoothing actually works, and try to fix it so it conserves integer iteration numbers
  * - improve maximum resolution through arbitrary-precision BigDecimal and/or perturbation theory (see Wikipedia)
  * - try out periodicity-checking (see Wikipedia)
  */
@@ -22,15 +21,20 @@ public class FractalCalculator implements Runnable {
 	static double REACHED_MAXITER = -2;	// special return value for points that did not escape before reaching the maximum iteration
 	static double IN_SET = -3;			// special return value for points analytically known to never escape
 	
+	// constants
+	static double log2 = Math.log(2);		// constant used for smoothing
+	static double halfByLog2 = 0.5/log2;	// constant used for smoothing
+	
 	// general calculation parameters
-	int maxIter;			// maximum number of fractal iterations to calculate before giving up
-	double escapeRadius;	// radius at which a point is considered to have "escaped" from the set
+	int maxIter;				// maximum number of fractal iterations to calculate before giving up
+	double escapeRadiusSquare;	// square of radius at which a point is considered to have "escaped" from the set
+	double smoothOffset;		// smoothing subtracts up to log_2(log_2(escapeRadiusSquare)); add that plus one to conserve integer iteration number
 	
 	// calculation input/output
 	Point2D.Double[] points;	// a list of points at which to calculate the fractal
 	double[][] fractal;			// reference to an array in which to save the results of calculation
 	int[][] indices;			// indices in fractal at which to save the result for each point
-	int[] progressCounter;	// tracks calculation progress
+	int[] progressCounter;		// tracks calculation progress
 
 	// constructor: assign values to fields and check that points and indices match
 	FractalCalculator(double[][] fractalArray, Point2D.Double[] fractalPoints, int[][] arrayIndices, int maxIter, double escapeRadius, int[] progressCounter) {
@@ -48,20 +52,22 @@ public class FractalCalculator implements Runnable {
 		indices = arrayIndices;
 		points = fractalPoints;
 		this.maxIter = maxIter;
-		this.escapeRadius = escapeRadius;
+		escapeRadiusSquare = escapeRadius*escapeRadius;
 		this.progressCounter = progressCounter;
+		
+		smoothOffset = Math.log(Math.log(escapeRadius)/log2)/log2 + 1;
 	}
 	
 	// for each point, evaluate the fractal and save the result
 	public void run() {
 		for(int i=0; i<points.length; i++) {
-			fractal[indices[i][0]][indices[i][1]] = MandelbrotPoint(points[i], maxIter, escapeRadius);
+			fractal[indices[i][0]][indices[i][1]] = MandelbrotPoint(points[i], maxIter, escapeRadiusSquare, smoothOffset);
 		}
 		progressCounter[0] += points.length;
 	}
 
 	// evaluate the Mandelbrot fractal at a point
-	static double MandelbrotPoint(Point2D.Double z0, int maxIter, double escapeRadius) {
+	static double MandelbrotPoint(Point2D.Double z0, int maxIter, double escapeRadiusSquared, double smoothOffset) {
 		double r0 = z0.getX();
 		double i0 = z0.getY();
 		
@@ -82,10 +88,9 @@ public class FractalCalculator implements Runnable {
 			n++;
 			
 			// if z_n has escaped, return number of iterations
-			if(r*r + i*i >= escapeRadius) {
+			if(r*r + i*i >= escapeRadiusSquared) {
 				// to interpolate between integer iteration numbers, consider how far z escaped
-				// should probably look into exactly how this smoothing works; it doesn't seem to conserve integer iteration numbers
-				return n + 1 - Math.log(0.5*Math.log(r*r + i*i)/Math.log(2))/Math.log(2);
+				return n + smoothOffset - Math.log(halfByLog2*Math.log(r*r + i*i))/log2;
 			}
 			
 			// return special value if n reached maxIter without escaping
