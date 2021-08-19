@@ -1,49 +1,34 @@
-import javax.swing.AbstractSpinnerModel;
+import javax.swing.SpinnerNumberModel;
 
 /* class SpinnerBinaryIntModel:
- * - provides a SpinnerModel that includes all integer powers of two (0, 1, 2, 4, 8, ...)
+ * - provides a SpinnerModel that includes all integer powers of two (1, 2, 4, 8, ...)
  */
 
-/* TODO:
- * - the spinner text field is non-editable for some reason
- */
-
-public class SpinnerBinaryIntModel extends AbstractSpinnerModel {
+public class SpinnerBinaryIntModel extends SpinnerNumberModel {
 	private static final long serialVersionUID = 5017737605225758694L;
-	
-	int value;
 	
 	public SpinnerBinaryIntModel() {
 		this(1);
 	}
 	
 	public SpinnerBinaryIntModel(int startValue) {
-		value = startValue;
-	}
-	
-	public Object getValue() {
-		return value;
-	}
-	
-	public void setValue(Object v) {
-		value = (int)v;
-		fireStateChanged();
+		super(startValue, 0, Integer.MAX_VALUE, 0);
 	}
 	
 	// return next power of two larger than current value
 	public Object getNextValue() {
-		return 1 << ((int)(Math.log(value)/Math.log(2)) + 1);
+		return 1 << ((int)(Math.log((int)getValue())/Math.log(2)) + 1);
 	}
 
 	// return next power of two smaller than current value, or null if value is already at minimum (zero)
 	public Object getPreviousValue() {
-		if(value == 0) {
+		if((int)getValue() == 1) {
 			return null;
 		}
 		
-		int low = 1 << (int)(Math.log(value)/Math.log(2));
-		if(low == value) {
-			return value/2;	// if value is already a power of two, return half of it
+		int low = 1 << (int)(Math.log((int)getValue())/Math.log(2));
+		if(low == (int)getValue()) {
+			return (int)getValue()/2;	// if value is already a power of two, return half of it
 		}
 		else {
 			return low;		// if value isn't a power of two, return next power of two smaller than it
