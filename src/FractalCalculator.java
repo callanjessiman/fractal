@@ -23,12 +23,10 @@ public class FractalCalculator implements Runnable {
 	
 	// constants
 	static double log2 = Math.log(2);		// constant used for smoothing
-	static double halfByLog2 = 0.5/log2;	// constant used for smoothing
 	
 	// general calculation parameters
 	int maxIter;				// maximum number of fractal iterations to calculate before giving up
-	double escapeRadiusSquare;	// square of radius at which a point is considered to have "escaped" from the set
-	double smoothOffset;		// smoothing subtracts up to log_2(log_2(escapeRadiusSquare)); add that plus one to conserve integer iteration number
+	double escapeRadiusSquared;	// square of radius at which a point is considered to have "escaped" from the set
 	
 	// calculation input/output
 	Point2D.Double[] points;	// a list of points at which to calculate the fractal
@@ -52,22 +50,20 @@ public class FractalCalculator implements Runnable {
 		indices = arrayIndices;
 		points = fractalPoints;
 		this.maxIter = maxIter;
-		escapeRadiusSquare = escapeRadius*escapeRadius;
+		escapeRadiusSquared = escapeRadius*escapeRadius;
 		this.progressCounter = progressCounter;
-		
-		smoothOffset = Math.log(Math.log(escapeRadius)/log2)/log2 + 1;
 	}
 	
 	// for each point, evaluate the fractal and save the result
 	public void run() {
 		for(int i=0; i<points.length; i++) {
-			fractal[indices[i][0]][indices[i][1]] = MandelbrotPoint(points[i], maxIter, escapeRadiusSquare, smoothOffset);
+			fractal[indices[i][0]][indices[i][1]] = MandelbrotPoint(points[i], maxIter, escapeRadiusSquared);
 		}
 		progressCounter[0] += points.length;
 	}
 
 	// evaluate the Mandelbrot fractal at a point
-	static double MandelbrotPoint(Point2D.Double z0, int maxIter, double escapeRadiusSquared, double smoothOffset) {
+	static double MandelbrotPoint(Point2D.Double z0, int maxIter, double escapeRadiusSquared) {
 		double r0 = z0.getX();
 		double i0 = z0.getY();
 		
@@ -90,7 +86,7 @@ public class FractalCalculator implements Runnable {
 			// if z_n has escaped, return number of iterations
 			if(r*r + i*i >= escapeRadiusSquared) {
 				// to interpolate between integer iteration numbers, consider how far z escaped
-				return n + smoothOffset - Math.log(halfByLog2*Math.log(r*r + i*i))/log2;
+				return n + 1 - Math.log(0.5*Math.log(r*r + i*i))/log2;
 			}
 			
 			// return special value if n reached maxIter without escaping
