@@ -56,8 +56,8 @@ public class FractalLabel extends JLabel {
 	static int PROGRESS_DELAY = 100;	// time between progress updates
 	
 	// static fields for default colour scheme
-	static double logScalingA = 12, logScalingB = 0.05;	// log-scaling parameters (n -> A*log(B*n + 1))
-	static int[][] defaultGradient = {					// cyclic colour gradient (RGB)
+	static double logScalingA = 12, logScalingB = 0.05, logScalingC = 16;	// log-scaling parameters (n -> A*log(B*(n + C)))
+	static int[][] defaultGradient = {										// cyclic colour gradient (RGB)
 		{4, 4, 73},
 		{0, 7, 100},
 		{12, 44, 138},
@@ -326,7 +326,7 @@ public class FractalLabel extends JLabel {
 		}
 		
 		// log-scale n for better contrast when zoomed in
-		n = logScalingA*Math.log(logScalingB*n + 1);
+		n = logScalingA*Math.log(logScalingB*(n + logScalingC));
 		
 		// interpolate colour between gradient values
 		while(n < 0) {
