@@ -10,7 +10,13 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -49,6 +55,10 @@ public class FractalLabel extends JLabel {
 	// auto-generated Component ID
 	private static final long serialVersionUID = 6834230068761778027L;
 	
+	// antialiasing strategies
+	static final int ANTIALIAS_NONE = 0;
+	static final int ANTIALIAS_RANDOM = 1;
+	
 	// miscellaneous static fields
 	static int UPDATE_DELAY = 100;		// time to wait after last GUI input before updating
 	static int N_RUNNABLES = 4000;		// efficiency seems to plateau between 1k and 10k Runnables (for 1MP of fractal mostly reaching maxiter = 1000)
@@ -84,6 +94,8 @@ public class FractalLabel extends JLabel {
 	double rotation;	// rotation angle (CCW camera rotation, or CW fractal rotation) (rad)
 
 	// fractal data and objects to show image
+	int widthPixels;		// pixel size of fractal to calculate
+	int heightPixels;
 	double[][] fractal;		// array to store floating-point fractal values calculated for a grid of points
 	BufferedImage image;	// image to display the fractal; same size as and calculated from fractal array
 	ImageIcon icon;			// icon for displaying the image
@@ -99,6 +111,15 @@ public class FractalLabel extends JLabel {
 	SwingWorker<Object, Object> updateWorker;	// Worker to execute updates in a separate, stoppable process
 	ExecutorService fractalThreadPool;			// ThreadPool to handle parallel calculation of fractal values
 	
+	// antialiasing
+	int antialiasingType;
+	Number antialiasingFactor;
+	Point2D.Double[][] randomAntialiasPoints;
+	// TODO: when using antialising, change
+	//     - fractal array size
+	//     - points passed to runnable
+	//     - image drawing
+	
 	// constructor: initialize fractal/framing parameters, JLabel, calculation objects, and listeners
 	FractalLabel(FractalGUI g){// TODO: clean up style
 		// set alignment and background so resizing looks nice
@@ -112,9 +133,11 @@ public class FractalLabel extends JLabel {
 		setIcon(icon);
 		gui = g;
 		
-		// initialize fractal parameters
+		// initialize math parameters
 		maxIter = 256;
 		escapeRad = 420.69;
+		antialiasingType = ANTIALIAS_RANDOM;
+		antialiasingFactor = 4;
 		
 		// initialize framing parameters
 		centerX = -0.69420;
@@ -145,6 +168,8 @@ public class FractalLabel extends JLabel {
 			}
 		});
 		updateTimer.setRepeats(false);
+		
+		loadRandomAntialiasPoints();
 		
 		// initialize progress reporting
 		progressCounter = new int[1];
@@ -188,6 +213,23 @@ public class FractalLabel extends JLabel {
 		});
 	}
 	
+	// load list of random points for antialiasing
+	// TODO: this should handle exceptions better
+	void loadRandomAntialiasPoints() {
+		try {
+			List<String> fileLines = Files.readAllLines(Paths.get("assets/randompoints/points.txt"), StandardCharsets.UTF_8);
+			randomAntialiasPoints = new Point2D.Double[fileLines.size()][];
+			for(int i = 0; i < fileLines.size(); i++) {
+				String[] pointStrings = fileLines.get(i).split(" ");
+				randomAntialiasPoints[i] = new Point2D.Double[pointStrings.length];
+				for(int j = 0; j < pointStrings.length; j++) {
+					String[] coordinateStrings = pointStrings[j].split(",");
+					randomAntialiasPoints[i][j] = new Point2D.Double(Double.parseDouble(coordinateStrings[0]), Double.parseDouble(coordinateStrings[1]));
+				}
+			}
+		} catch (IOException e) { e.printStackTrace(); }
+	}
+	
 	// recreate fractal array to match current window size and fractal/framing parameters, then calculate its contents
 	void updateFractal() {
 		System.out.println("Updating fractal...");
@@ -198,8 +240,30 @@ public class FractalLabel extends JLabel {
 		int nThreads = Runtime.getRuntime().availableProcessors(); // efficiency seems to increase with nThreads until nThreads = [CPU nThreads], and slowly decrease above that
 		fractalThreadPool = Executors.newFixedThreadPool(nThreads, fractalThreadFactory);
 		
-		// redeclare fractal array
-		fractal = new double[getWidth()][getHeight()];
+		// redeclare fractal array with size based on antialiasing type
+		widthPixels = getWidth();
+		heightPixels = getHeight();
+		switch (antialiasingType) {
+			case ANTIALIAS_NONE:
+				fractal = new double[widthPixels][heightPixels];
+				break;
+			case ANTIALIAS_RANDOM:
+				fractal = new double[widthPixels*(int)antialiasingFactor][heightPixels]; // should react if factor isn't an integer > 1
+				break;
+			default:
+				System.err.println(String.format("Warning: antialiasingType %s not understood; using ANTIALIAS_NONE"));
+				antialiasingType = ANTIALIAS_NONE;
+				fractal = new double[widthPixels][heightPixels];
+				break;
+		}
+
+		Point2D.Double zeros = getFractalXY(new Point(0, 0));
+		Point2D.Double ones = getFractalXY(new Point(1, 1));
+		Point2D.Double twos = getFractalXY(new Point(2, 2));
+		if(zeros.x == ones.x || zeros.y == ones.y || ones.x == twos.x || ones.y == twos.y) {
+			System.out.println("Warning: double precision insufficient");
+		}
+		
 		for(int i=0; i<fractal.length; i++) {
 			for(int j=0; j<fractal[0].length; j++) {
 				fractal[i][j] = FractalCalculator.NOT_CALCULATED;
@@ -239,7 +303,17 @@ public class FractalLabel extends JLabel {
 			for(int i1d = start; i1d < end; i1d++) {
 				indices[i1d - start][0] = allIndices.get(i1d).x;
 				indices[i1d - start][1] = allIndices.get(i1d).y;
-				points[i1d - start] = getFractalXY(new Point(indices[i1d - start][0], indices[i1d - start][1]));
+				switch (antialiasingType) {
+					case ANTIALIAS_NONE:
+						points[i1d - start] = getFractalXY(new Point(indices[i1d - start][0], indices[i1d - start][1]));
+						break;
+					case ANTIALIAS_RANDOM:
+						Point2D.Double pixelCenter = getFractalXY(new Point(indices[i1d - start][0]/(int)antialiasingFactor, indices[i1d - start][1]));
+						double pixelSize = width/widthPixels;
+						Point2D.Double antialiasOffsetFactor = randomAntialiasPoints[(int)antialiasingFactor - 2][indices[i1d - start][0]%(int)antialiasingFactor];
+						points[i1d - start] = new Point2D.Double(pixelCenter.x + pixelSize*antialiasOffsetFactor.x, pixelCenter.y + pixelSize*antialiasOffsetFactor.y);
+						break;
+				}
 			}
 			fractalThreadPool.execute(new FractalCalculator(fractal, points, indices, maxIter, escapeRad, progressCounter));
 		}
@@ -263,11 +337,28 @@ public class FractalLabel extends JLabel {
 		System.out.println("Updating image... ");
 		
 		// create new image and render the contents of the fractal array to it
-		image = new BufferedImage(fractal.length, fractal[0].length, BufferedImage.TYPE_INT_RGB);
-		for(int i = 0; i < fractal.length; i++) {
-			for(int j = 0; j < fractal[0].length; j++) {
-				image.setRGB(i, j, getIterationRGB(fractal[i][j], defaultGradient));
-			}
+		image = new BufferedImage(widthPixels, heightPixels, BufferedImage.TYPE_INT_RGB);
+		switch (antialiasingType) {
+			case ANTIALIAS_NONE:
+				for(int i = 0; i < image.getWidth(); i++) {
+					for(int j = 0; j < image.getHeight(); j++) {
+						image.setRGB(i, j, getIterationRGB(fractal[i][j], defaultGradient));
+					}
+				}
+				break;
+			case ANTIALIAS_RANDOM:
+				for(int i = 0; i < image.getWidth(); i++) {
+					for(int j = 0; j < image.getHeight(); j++) {
+						Double[] pixelIterations = new Double[(int)antialiasingFactor];
+						for(int k = 0; k < (int)antialiasingFactor; k++) {
+							int ik = i*(int)antialiasingFactor + k;
+							pixelIterations[k] = fractal[ik][j];
+						}
+						Arrays.sort(pixelIterations, FractalCalculator.ITERATION_COMPARATOR);
+						image.setRGB(i, j, getIterationRGB(pixelIterations[pixelIterations.length/2], defaultGradient)); // median-ish
+					}
+				}
+				break;
 		}
 		
 		// display new image
@@ -297,8 +388,8 @@ public class FractalLabel extends JLabel {
 	
 	// transform a point from image space to fractal space
 	Point2D.Double getFractalXY(Point imageXY){
-		double dx = (((double)imageXY.getX())/fractal.length - 0.5)*width;						// x-coordinate relative to center, ignoring rotation
-		double dy = -(((double)imageXY.getY()) - 0.5*fractal[0].length)*width/fractal.length;	// y-coordinate relative to center, ignoring rotation
+		double dx = (((double)imageXY.getX())/widthPixels - 0.5)*width;						// x-coordinate relative to center, ignoring rotation
+		double dy = -(((double)imageXY.getY()) - 0.5*fractal[0].length)*width/widthPixels;	// y-coordinate relative to center, ignoring rotation
 		return new Point2D.Double(
 				centerX + dx*Math.cos(rotation) - dy*Math.sin(rotation),						// multiply by rotation matrix and add center offset
 				centerY + dx*Math.sin(rotation) + dy*Math.cos(rotation)
@@ -312,8 +403,8 @@ public class FractalLabel extends JLabel {
 		double dx = dxt*Math.cos(rotation) + dy*Math.sin(rotation);	// multiply by inverse of rotation matrix
 		dy = -dxt*Math.sin(rotation) + dy*Math.cos(rotation);		// can re-use double dy
 		return new Point(
-				(int)(fractal.length*(0.5 + dx/width) + 0.5),
-				(int)(0.5*fractal[0].length - dy*fractal.length/width + 0.5)
+				(int)(widthPixels*(0.5 + dx/width) + 0.5),
+				(int)(0.5*fractal[0].length - dy*widthPixels/width + 0.5)
 		);
 	}
 	

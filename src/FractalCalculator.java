@@ -1,4 +1,5 @@
 import java.awt.geom.Point2D;
+import java.util.Comparator;
 
 /* class FractalCalculator:
  * - contains static methods for the calculation of the Mandelbrot fractal
@@ -20,6 +21,31 @@ public class FractalCalculator implements Runnable {
 	static double NOT_CALCULATED = -1;	// placeholder indicating the value of a pixel has not yet been calculated
 	static double REACHED_MAXITER = -2;	// special return value for points that did not escape before reaching the maximum iteration
 	static double IN_SET = -3;			// special return value for points analytically known to never escape
+	
+	// comparator to sort iteration numbers; ordinary number sorting, except REACHED_MAXITER and IN_SET (in that order) are higher than everything else
+	static Comparator<Double> ITERATION_COMPARATOR = new Comparator<Double>(){
+		public int compare(Double o1, Double o2) {
+			// TODO: what is good practice with return statements, if/if/if/.../return or if/else if/else if/.../else
+			if(o1.equals(o2)) {
+				return 0;
+			}
+			else if(o1 == IN_SET) {
+				return 1;
+			}
+			else if(o2 == IN_SET) {
+				return -1;
+			}
+			else if(o1 == REACHED_MAXITER) {
+				return 1;
+			}
+			else if(o2 == REACHED_MAXITER) {
+				return -1;
+			}
+			else {
+				return o1.compareTo(o2);
+			}
+		}		
+	};
 	
 	// constants
 	static double log2 = Math.log(2);		// constant used for smoothing
